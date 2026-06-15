@@ -1,0 +1,19 @@
+# Secrets / credentials — never commit
+.env
+gmail_token.pkl
+credentials.json
+
+# Python
+__pycache__/
+*.pyc
+
+# Local editor/agent settings
+.claude/settings.local.json
+
+# External cloned repo (has its own git history)
+greennode-agentbase-skills/
+
+# Scratch/temp
+_*.txt
+*.tmp
+~$*

@@ -1,0 +1,39 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(git clone https://github.com/vngcloud/greennode-agentbase-skills.git .)",
+      "PowerShell(git clone https://github.com/vngcloud/greennode-agentbase-skills.git greennode-agentbase-skills)",
+      "Bash(python -c \"import pandas as pd; print\\(pd.read_excel\\('Metrics.xlsx', sheet_name=None\\).keys\\(\\)\\)\")",
+      "Bash(pip install *)",
+      "Bash(python -c \"import pandas as pd; xl = pd.ExcelFile\\('Metrics.xlsx'\\); print\\('Sheets:', xl.sheet_names\\)\")",
+      "Bash(python -c \"import pandas as pd; df = pd.read_excel\\('Metrics.xlsx', sheet_name='List of metrics'\\); print\\(df.to_string\\(\\)\\)\")",
+      "Bash(python -c \"import pandas as pd; xl = pd.ExcelFile\\('KPI.xlsx'\\); print\\('Sheets:', xl.sheet_names\\)\")",
+      "Bash(python -c \"import pandas as pd; df = pd.read_excel\\('KPI.xlsx', sheet_name='KPI', header=None\\); print\\(df.head\\(20\\).to_string\\(\\)\\)\")",
+      "Bash(python -c \"import pandas as pd; xl = pd.ExcelFile\\('Actual performance.xlsx'\\); print\\('Sheets:', xl.sheet_names\\)\")",
+      "Bash(python -c \"import pandas as pd; df = pd.read_excel\\('Actual performance.xlsx', sheet_name='Actual performance', header=None\\); print\\(df.head\\(20\\).to_string\\(\\)\\)\")",
+      "Bash(python -c \"import pandas as pd; xl = pd.ExcelFile\\('Annual planning.xlsx'\\); print\\('Sheets:', xl.sheet_names\\)\")",
+      "Bash(python -c \"import pandas as pd; df = pd.read_excel\\('Annual planning.xlsx', sheet_name='Annual Planning', header=None\\); print\\(df.head\\(30\\).to_string\\(\\)\\)\")",
+      "Bash(python -c \"import pandas as pd; xl = pd.ExcelFile\\('Initiatives tracker/Initiatives tracker tháng 5-2026.xlsx'\\); print\\('Sheets:', xl.sheet_names\\)\")",
+      "Bash(python -c \"import pandas as pd; df = pd.read_excel\\('Initiatives tracker/Initiatives tracker tháng 5-2026.xlsx', sheet_name='Initiatives tracker 5-2026', header=None\\); pd.set_option\\('display.max_columns', None\\); pd.set_option\\('display.width', None\\); print\\(df.head\\(30\\).to_string\\(\\)\\)\")",
+      "PowerShell(mkdir -p src/data_sources src/steps src/utils src/prompts)",
+      "Bash(cd /d Hackathon2026)",
+      "Bash(python run_agent.py)",
+      "Bash(set PYTHONIOENCODING=utf-8)",
+      "Bash(python -c \"import re; f=open\\('src/agent.py','r',encoding='utf-8'\\); c=f.read\\(\\); f.close\\(\\); c=re.sub\\(r'[^\\\\x00-\\\\x7F]+', lambda m: '['+m.group\\(0\\).encode\\('unicode_escape'\\).decode\\(\\)+']', c\\); f=open\\('src/agent.py','w',encoding='utf-8'\\); f.write\\(c\\)\")",
+      "Bash(python -c \"import pandas as pd; df = pd.read_excel\\('Actual performance.xlsx', sheet_name='Actual performance', header=3\\); print\\('Columns:', list\\(df.columns\\)[:10]\\)\")",
+      "Bash(python -c \"import pandas as pd; df = pd.read_excel\\('Actual performance.xlsx', sheet_name='Actual performance', header=3\\); print\\(df.head\\(5\\).to_string\\(\\)\\)\")",
+      "Bash(python -c ' *)",
+      "Bash(python -c \"import pandas as pd; df = pd.read_excel\\('Forecast.xlsx'\\); print\\(df.to_string\\(\\)\\)\")",
+      "Bash(python -c \"import pandas as pd; df = pd.read_excel\\('Performance analysis.xlsx'\\); print\\(df.to_string\\(\\)\\)\")",
+      "Bash(python -c \"import pandas as pd; df = pd.read_excel\\('Metrics.xlsx'\\); print\\(df.to_string\\(\\)\\)\")",
+      "Bash(python -c \"import pandas as pd; xl = pd.ExcelFile\\('Forecast.xlsx'\\); print\\('Sheets:', xl.sheet_names\\)\")",
+      "Bash(python -c \"import pandas as pd; df = pd.read_excel\\('Forecast.xlsx', sheet_name='Forecast July 2026'\\); print\\(df.to_string\\(\\)\\)\")",
+      "Bash(cd /d \"d:\\\\Hackathon2026\\\\report_generate\")",
+      "Bash(python -c \"import pandas as pd; xl = pd.ExcelFile\\('Forecast.xlsx'\\); print\\('Sheets:', xl.sheet_names\\); df = pd.read_excel\\('Forecast.xlsx', sheet_name=0\\); print\\('\\\\\\\\nColumns:', df.columns.tolist\\(\\)\\); print\\('\\\\\\\\nFirst rows:'\\); print\\(df.head\\(10\\)\\)\")",
+      "Bash(python -c \"from src.steps.step1_email_or_manual import Step1EmailOrManual; print\\('Step1 imported'\\)\")"
+    ],
+    "additionalDirectories": [
+      "d:\\Hackathon2026\\report_generate"
+    ]
+  }
+}

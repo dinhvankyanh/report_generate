@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Report Generate Agent</title>
+<style>
+  :root{--bg:#0f172a;--panel:#1e293b;--muted:#94a3b8;--acc:#3b82f6;--ok:#22c55e;--warn:#f59e0b;--err:#ef4444;--txt:#e2e8f0;}
+  *{box-sizing:border-box}
+  body{margin:0;font-family:Segoe UI,Roboto,Arial,sans-serif;background:var(--bg);color:var(--txt);height:100vh;display:flex;flex-direction:column}
+  header{padding:14px 20px;background:var(--panel);border-bottom:1px solid #334155;display:flex;align-items:center;gap:12px}
+  header h1{font-size:16px;margin:0;font-weight:600}
+  header .badge{font-size:12px;color:var(--muted)}
+  /* Folder bar */
+  .folderbar{padding:12px 20px;background:#162032;border-bottom:1px solid #334155;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .folderbar input{flex:1;min-width:220px;padding:8px 10px;background:#0b1220;border:1px solid #334155;border-radius:8px;color:var(--txt)}
+  .folderbar button{padding:8px 12px;border:none;border-radius:8px;background:var(--acc);color:#fff;cursor:pointer;font-size:13px}
+  .folderbar button.sec{background:#334155}
+  #folderStatus{width:100%;font-size:12.5px;color:var(--muted)}
+  #folderStatus .ok{color:var(--ok)} #folderStatus .err{color:var(--err)}
+  .prereqs{margin-top:8px;background:#0b1220;border:1px solid #243044;border-radius:8px;padding:8px 12px}
+  .pq-title{font-size:12px;color:var(--muted);margin-bottom:4px;font-weight:600;letter-spacing:.3px}
+  .pq{font-size:13px;padding:2px 0}
+  .pq.ok{color:#bbf7d0} .pq.no{color:#fecaca}
+  .pq .pq-d{color:#64748b;font-size:12px}
+  .pq-ready{margin-top:6px;font-size:13px}
+  .pq-ready.y{color:var(--ok)} .pq-ready.n{color:var(--warn)}
+  /* Chat */
+  #chat{flex:1;overflow-y:auto;padding:20px;display:flex;flex-direction:column;gap:14px}
+  .msg{max-width:760px;padding:11px 14px;border-radius:12px;line-height:1.5;font-size:14px;white-space:pre-wrap}
+  .user{align-self:flex-end;background:var(--acc);color:#fff;border-bottom-right-radius:3px}
+  .bot{align-self:flex-start;background:var(--panel);border:1px solid #334155;border-bottom-left-radius:3px}
+  .bot .title{font-weight:600;margin-bottom:6px}
+  .log{margin-top:8px;background:#0b1220;border:1px solid #243044;border-radius:8px;font-family:Consolas,monospace;font-size:12px;color:#9fb3c8;max-height:230px;overflow:auto;padding:8px 10px}
+  .log div{padding:1px 0}
+  .files{margin-top:10px;display:flex;flex-direction:column;gap:6px}
+  .files a{display:inline-flex;align-items:center;gap:8px;padding:8px 12px;background:#0b1220;border:1px solid #334155;border-radius:8px;color:var(--txt);text-decoration:none;font-size:13px;width:fit-content}
+  .files a.pdf{border-color:var(--ok);color:#dcfce7}
+  .files a:hover{border-color:var(--acc)}
+  /* Input */
+  .composer{padding:14px 20px;background:var(--panel);border-top:1px solid #334155;display:flex;gap:10px}
+  .composer input{flex:1;padding:12px 14px;background:#0b1220;border:1px solid #334155;border-radius:10px;color:var(--txt);font-size:14px}
+  .composer button{padding:12px 20px;border:none;border-radius:10px;background:var(--acc);color:#fff;font-weight:600;cursor:pointer}
+  .composer button:disabled{opacity:.5;cursor:not-allowed}
+  .spin{display:inline-block;width:12px;height:12px;border:2px solid #ffffff55;border-top-color:#fff;border-radius:50%;animation:s .7s linear infinite;vertical-align:-1px}
+  @keyframes s{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+  <header>
+    <h1>📊 Report Generate Agent</h1>
+    <span class="badge" id="modeBadge"></span>
+  </header>
+
+  <div class="folderbar">
+    <button class="sec" onclick="pickFolder()">📁 Chọn folder…</button>
+    <input id="folderInput" placeholder="hoặc dán đường dẫn folder dữ liệu, vd: D:\Hackathon2026\report_generate">
+    <button onclick="setFolder()">Đặt folder</button>
+    <div id="folderStatus">Đang tải…</div>
+  </div>
+
+  <div id="chat"></div>
+
+  <div class="composer">
+    <input id="msg" placeholder='Nhập: "làm report tháng 6/2026 giúp tôi"' autofocus
+           onkeydown="if(event.key==='Enter')send()">
+    <button id="sendBtn" onclick="send()">Gửi</button>
+  </div>
+
+<script>
+const chat = document.getElementById('chat');
+let ready = false;
+
+function bubble(cls, html){
+  const d = document.createElement('div');
+  d.className = 'msg ' + cls;
+  d.innerHTML = html;
+  chat.appendChild(d); chat.scrollTop = chat.scrollHeight;
+  return d;
+}
+function esc(s){return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+
+async function loadConfig(){
+  const c = await (await fetch('/api/config')).json();
+  renderStatus(c);
+  document.getElementById('modeBadge').textContent =
+    `mode: ${c.mode}` + (c.llm_ready ? ' · LLM ✓' : ' · LLM chưa cấu hình');
+  document.getElementById('folderInput').value = c.data_dir;
+}
+function renderStatus(c){
+  ready = c.ready;
+  const el = document.getElementById('folderStatus');
+  let s = `📂 <b>${esc(c.data_dir)}</b>`;
+  s += `<div class="prereqs"><div class="pq-title">FILE CẦN THIẾT TỐI THIỂU ĐỂ TẠO REPORT</div>`;
+  (c.prereqs||[]).forEach(p=>{
+    s += `<div class="pq ${p.ok?'ok':'no'}">${p.ok?'✓':'✗'} ${esc(p.name)}` +
+         `<span class="pq-d"> — ${esc(p.detail||'')}</span></div>`;
+  });
+  s += ready
+     ? `<div class="pq-ready y">✓ Đã đủ điều kiện — có thể tạo report.</div>`
+     : `<div class="pq-ready n">⚠ Chưa đủ — bổ sung mục ✗ vào folder rồi Chọn/Đặt lại folder.</div>`;
+  s += `</div>`;
+  el.innerHTML = s;
+}
+
+async function pickFolder(){
+  const r = await (await fetch('/api/pick-folder')).json();
+  if(r.path){ document.getElementById('folderInput').value = r.path; setFolder(); }
+}
+async function setFolder(){
+  const path = document.getElementById('folderInput').value.trim();
+  const r = await fetch('/api/folder', {method:'POST', headers:{'Content-Type':'application/json'},
+                        body: JSON.stringify({path})});
+  const c = await r.json();
+  if(c.error){ bubble('bot', '⚠ ' + esc(c.error)); return; }
+  renderStatus(c);
+  bubble('bot', `Đã chọn folder: <b>${esc(c.data_dir)}</b>. ` +
+    (c.ready ? 'Sẵn sàng tạo report.' : 'Còn thiếu file đầu vào, vui lòng kiểm tra.'));
+}
+
+async function send(){
+  const inp = document.getElementById('msg');
+  const text = inp.value.trim();
+  if(!text) return;
+  inp.value = '';
+  bubble('user', esc(text));
+
+  const p = await (await fetch('/api/parse', {method:'POST', headers:{'Content-Type':'application/json'},
+                   body: JSON.stringify({message:text})})).json();
+  if(!p.ok){
+    bubble('bot', 'Mình chưa nhận ra tháng/năm. Hãy nói ví dụ: <b>"làm report tháng 6/2026"</b>.');
+    return;
+  }
+  if(!ready){
+    bubble('bot', `Bạn muốn report <b>${esc(p.month_name)} ${p.year}</b>. ` +
+      'Nhưng folder dữ liệu chưa sẵn sàng — hãy chọn folder có đủ file đầu vào trước nhé.');
+    return;
+  }
+  runReport(p.month, p.year, p.month_name);
+}
+
+function runReport(month, year, monthName){
+  const btn = document.getElementById('sendBtn');
+  btn.disabled = true;
+  const card = bubble('bot',
+    `<div class="title">⏳ Đang tạo report ${esc(monthName)} ${year} <span class="spin"></span></div>` +
+    `<div class="log" id="log"></div><div class="files" id="files"></div>`);
+  const log = card.querySelector('#log');
+  const files = card.querySelector('#files');
+  const es = new EventSource(`/api/run?month=${month}&year=${year}`);
+
+  es.addEventListener('log', e=>{
+    const line = document.createElement('div'); line.textContent = e.data;
+    log.appendChild(line); log.scrollTop = log.scrollHeight;
+  });
+  es.addEventListener('result', e=>{
+    es.close(); btn.disabled = false;
+    const r = JSON.parse(e.data);
+    const t = card.querySelector('.title');
+    if(r.success){
+      t.innerHTML = `✅ Hoàn tất report ${esc(monthName)} ${year}`;
+      let html = '';
+      if(r.pdf) html += `<a class="pdf" href="/api/download?rel=${encodeURIComponent(r.pdf)}">⬇ Tải report (.docx)</a>`;
+      (r.files||[]).filter(f=>f!==r.pdf).forEach(f=>{
+        html += `<a href="/api/download?rel=${encodeURIComponent(f)}">⬇ ${esc(f)}</a>`;
+      });
+      files.innerHTML = html;
+    } else {
+      t.innerHTML = `❌ Tạo report thất bại`;
+      if(r.error){ const d=document.createElement('div'); d.textContent='Lỗi: '+r.error; log.appendChild(d); }
+    }
+    chat.scrollTop = chat.scrollHeight;
+  });
+  es.addEventListener('error', e=>{
+    es.close(); btn.disabled = false;
+    if(e.data){ const d=document.createElement('div'); d.textContent=e.data; log.appendChild(d); }
+  });
+}
+
+loadConfig();
+bubble('bot', 'Xin chào! Mình là Report Generate Agent. Hãy <b>chọn folder dữ liệu</b> ở trên, ' +
+  'rồi nhập ví dụ <b>"làm report tháng 6/2026 giúp tôi"</b>.');
+</script>
+</body>
+</html>
