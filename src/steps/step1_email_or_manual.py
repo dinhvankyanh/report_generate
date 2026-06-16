@@ -181,18 +181,43 @@ class Step1GetInitiativesData(BaseStep):
         return items
 
     def _get_raw_emails(self, month: int, year: int) -> List[dict]:
-        """Get raw emails from the data source, with a sample-file fallback."""
+        """
+        Get raw emails. If live Gmail returns data, use it AND refresh
+        sample_emails.json (anonymized) so the offline/manual run mirrors live.
+        Otherwise fall back to sample_emails.json.
+        """
         emails = []
         try:
             emails = self.data_source.get_raw_emails(month, year) or []
         except Exception as e:
             self.log(f"Email fetch failed: {e}", "warn")
 
-        if not emails:
+        if emails:
+            self.log("=" * 56)
+            self.log(f">>> DATA SOURCE: LIVE GMAIL ({len(emails)} emails)")
+            self.log("=" * 56)
+            self._refresh_sample_file(emails)
+        else:
             emails = self._load_sample_emails()
-            if emails:
-                self.log(f"Using {len(emails)} email(s) from sample_emails.json", "warn")
+            self.log("=" * 56)
+            self.log(f">>> DATA SOURCE: sample_emails.json ({len(emails)} emails)")
+            self.log("=" * 56)
         return emails
+
+    def _refresh_sample_file(self, live_emails: List[dict]):
+        """Persist live emails (anonymized + filtered) to sample_emails.json so a
+        later manual/offline run reproduces the same updated data."""
+        try:
+            from ..llm.extractor import anonymize_and_filter
+            cleaned = anonymize_and_filter(live_emails)
+            if not cleaned:
+                return
+            config.SAMPLE_EMAILS_FILE.write_text(
+                json.dumps(cleaned, ensure_ascii=False, indent=2), encoding="utf-8")
+            self.log(f"Refreshed sample_emails.json ({len(cleaned)} anonymized emails) "
+                     f"for offline/BTC parity")
+        except Exception as e:
+            self.log(f"Could not refresh sample_emails.json: {e}", "warn")
 
     def _load_sample_emails(self) -> List[dict]:
         """Fallback raw-email source for local testing without Gmail."""

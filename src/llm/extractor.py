@@ -52,6 +52,37 @@ def normalize_subject(subject: str) -> str:
     return s.strip()
 
 
+_EMAIL_RE = re.compile(r'[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}')
+
+
+def anonymize_and_filter(emails: List[dict]) -> List[dict]:
+    """
+    Keep only product/initiative threads and censor PII: every email address is
+    replaced by a stable neutral alias (personN@demo.local). Returns dicts with
+    {subject, date, sender, body} ready to persist as sample_emails.json.
+    """
+    alias = {}
+
+    def repl(m):
+        a = m.group(0).lower()
+        if a not in alias:
+            alias[a] = f"person{len(alias) + 1}@demo.local"
+        return alias[a]
+
+    out = []
+    for e in emails:
+        subject = e.get("subject", "") or ""
+        if not RELEVANT_SUBJECT.search(subject):
+            continue
+        out.append({
+            "subject": _EMAIL_RE.sub(repl, subject),
+            "date": e.get("date", ""),
+            "sender": _EMAIL_RE.sub(repl, e.get("sender", "") or ""),
+            "body": _EMAIL_RE.sub(repl, e.get("body", "") or ""),
+        })
+    return out
+
+
 def _strip_quoted(body: str) -> str:
     """Drop quoted reply lines (> ...) and boilerplate to shrink the prompt."""
     lines = []
