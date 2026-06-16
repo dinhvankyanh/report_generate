@@ -11,8 +11,11 @@ tài khoản Google của tác giả.
 
 ## 1. Yêu cầu
 - Python 3.10+ (đã test 3.14).
-- Bản nộp đã kèm sẵn `.env` (LLM key GreenNode + `DATA_SOURCE_MODE=manual`) và dữ liệu mẫu
-  → **chạy ngay, không cần cấu hình gì.** (Không cần tài khoản/credentials Google.)
+- **Chạy ngay, không cần cấu hình gì** — LLM key (GreenNode platform) + chế độ `manual`
+  đã đặt sẵn làm mặc định trong code (`src/config.py`). Không cần `.env`, không cần
+  tài khoản/credentials Google. Dữ liệu mẫu đi kèm trong `Report_Sample/`.
+
+> Dù chấm qua **clone GitHub** hay **giải nén ZIP**, các bước ở mục 2 đều chạy được luôn.
 
 ## 2. Chạy (chọn 1 trong 2)
 
@@ -33,7 +36,7 @@ python app.py
 > Windows: double-click `run_agent_reportgenerate.bat` (tự cài deps + mở trình duyệt).
 
 ## (Tùy chọn) Dùng LLM key riêng của bạn
-Agent OpenAI-compatible. Sửa `.env`:
+Agent OpenAI-compatible. Tạo `.env` (override mặc định trong code):
 ```
 LLM_BASE_URL=...   LLM_API_KEY=...   LLM_MODEL=...
 ```

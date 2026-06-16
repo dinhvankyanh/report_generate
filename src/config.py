@@ -66,7 +66,7 @@ _recompute_paths()
 
 # Data source mode
 # Options: "email" (Phase 2 with Gmail API) or "manual" (Phase 1 fallback)
-DATA_SOURCE_MODE = os.environ.get("DATA_SOURCE_MODE", "email")
+DATA_SOURCE_MODE = os.environ.get("DATA_SOURCE_MODE", "manual")
 
 # Gmail API configuration (Phase 2)
 # Get these from Google Cloud Console: https://console.cloud.google.com
@@ -78,13 +78,15 @@ GMAIL_API_CONFIG = {
 }
 
 # LLM configuration (GreenNode AI Platform — OpenAI-compatible endpoint)
-# The API key is saved to .env as LLM_API_KEY by `aip.sh api-keys create/get`.
-# LLM_MODEL must be the model `path` from `aip.sh models get <uuid>`.
+# NOTE: the api_key default below is a shared GreenNode *platform* demo key bundled
+# so the agent runs out-of-the-box for hackathon judging (no .env needed). It is a
+# billable platform key (not personal data) — set a low quota and ROTATE after judging.
+# Any env var (LLM_API_KEY / LLM_MODEL / LLM_BASE_URL / DATA_SOURCE_MODE) overrides these.
 LLM_CONFIG = {
     "base_url": os.environ.get("LLM_BASE_URL",
                                "https://maas-llm-aiplatform-hcm.api.vngcloud.vn/v1"),
-    "api_key": os.environ.get("LLM_API_KEY", ""),
-    "model": os.environ.get("LLM_MODEL", ""),
+    "api_key": os.environ.get("LLM_API_KEY", "vn-K-A9-gp1_t9W2gJ17GsSB-5qJiw5vkacc18e09f8fc4ea5ae057898d1d0633a7Ddj9gB-J0_E2yJ_tdkY3_WRxUedY-b"),
+    "model": os.environ.get("LLM_MODEL", "qwen/qwen3-5-27b"),
     "timeout": float(os.environ.get("LLM_TIMEOUT", "90")),
 }
 
