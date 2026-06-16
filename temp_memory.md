@@ -217,3 +217,34 @@ Vấn đề gặp: #3 "New modelling" lấy nhầm message cũ (Gini 0.2) thay v
 
 ## Trạng thái cuối (đợt 3)
 - GitHub @ ~675abef, đầy đủ + sạch secret/PII. Tracker tháng 6 canonical: #3 Gini 0.3/Sep-26, #10 Delay/Aug-26.
+
+---
+
+# Session: 2026-06-16 (đợt 4 — 2-pass thread mapping, fix #1/#2 cross-thread)
+
+## User feedback đã xử lý
+- "#2 luồng mail mới đổi timeline thành 2-phase; #1 ready-pilot-May phải thành Live khi report T6" → fix.
+- "#10 details nói 'không thể kick off' nhưng mail nói CÓ kickstart cuối T6" → fix (resolved-blocker recency).
+
+## Chuỗi chẩn đoán (quan trọng — bài học)
+1. Email mới `[Partnership] Onboard Partner A` bị **skip** vì filter chỉ khớp `[Partnerships]` (số nhiều). → mở rộng RELEVANT_SUBJECT: `\[(product|cl|partnerships?)\]|\binitiative\b|\bpartner\b`.
+2. **#1 và #2 TRÙNG TÊN** ("Add 1 partner with higher risk appetite", chỉ khác timing May-26 vs Aug-26) → LLM gán nhầm. → thêm rule disambiguate same-name theo planned timing/persona.
+3. **#2 nằm ở 2 thread khác tên** ("Partner 2 — onboarding" 15/6 từ chối phase→Oct; "Onboard Partner A" 16/6 đồng ý phase) → LLM bám thread cũ. Đổi sang **minimax/minimax-m2.5** KHÔNG fix được (cả 2 model đều drop thread mới); minimax là reasoning model cần `max_tokens` lớn (2000→8000) nếu không trả rỗng. → kết luận lỗi CẤU TRÚC, không phải model.
+4. **Excel-lock bẫy chẩn đoán**: tracker tháng 6 đang mở trong Excel → agent ghi sang `(1)…(13).xlsx`, file gốc giữ giá trị cũ → tưởng extraction sai. Thực ra đúng. (Đã dọn rác + fix fallback ghi đè 1 bản.)
+
+## Giải pháp: 2-pass thread→initiative mapping (extractor.py)
+- **Pass 1** `_map_threads_to_initiatives`: LLM map mỗi thread → No(s) (cho phép 1 thread→nhiều init, nhiều thread→1 init), disambiguate same-name theo timing.
+- **Gộp hybrid**: thread map về ĐÚNG 1 init → gộp chronological (latest thắng) → #2 ra 2-phase. Thread đa-init (modelling→#3&#10) → GIỮ NGUYÊN, không lẫn → #3/#10 đúng.
+- **Pass 2**: extract như cũ trên threads đã gộp.
+- **Completeness sweep** (cuối prompt): init không email + timing đã qua + prev "ready/deployed" → Live (Rule B) → #1 Live.
+- Helpers `_chat_json` / `_json_obj`; `_add_months` (tính tháng bằng code); seed=7; max_tokens=8000.
+- → run giờ ~3 LLM call (map + extract + narrative), ~1.5–2.5 phút.
+
+## Kết quả verify (ổn định nhiều lần, canonical file)
+- #1 Live/May-26; #2 Delay/Sep-26 (Phase 1 T9 1tr user, Phase 2 chưa timeline); #3 On Track/Sep-26 (Gini 0.3); #10 Delay/Aug-26.
+
+## Logic generalize đã chốt
+recency (tin mới đảo tin cũ, kể cả khác thread) · roll-forward ready+past→Live · tính tháng bằng code · map+gộp thread cùng init / tách thread đa-init · filter tag linh hoạt.
+
+## Lưu ý vận hành
+Đừng mở file output (tracker/Forecast/Performance/report) trong Excel/Word khi chạy agent → khoá file → ghi sang bản phụ.

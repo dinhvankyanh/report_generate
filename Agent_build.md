@@ -86,21 +86,25 @@ src/
 - Cào email Gmail 6 tháng → in **banner nguồn dữ liệu** (">>> DATA SOURCE: LIVE GMAIL (N)"
   hoặc "sample_emails.json (N)"). Khi LIVE: tự ghi email (ẩn danh địa chỉ → personN@demo.local,
   lọc relevant) vào `sample_emails.json` để bản offline/BTC khớp live.
-- Gom email theo **thread**:
-  - `normalize_subject` bỏ tiền tố Re/Fwd **và hậu tố "(...)"** → gộp 2 thread gần trùng tên
-    (vd "... new segments" và "... new segments (Sep-26)" thành 1).
-  - Sort message tăng dần theo ngày, **chỉ giữ ~4 message mới nhất/thread** (email quote nội
-    dung cũ inline gây nhiễu "recency").
-- Đưa cho **LLM** (qwen3, `/no_think`, `seed=7`) cùng danh sách initiative (kèm status/new
-  timing/details tháng X-1) → LLM trả JSON theo `No`:
+- Gom email theo **thread** (`normalize_subject` bỏ Re/Fwd + hậu tố "(...)"; sort tăng dần
+  theo ngày; giữ ~4 message mới nhất/thread vì email quote nội dung cũ inline gây nhiễu recency).
+- **2-pass thread→initiative mapping** (xử lý cross-thread / same-name):
+  - **Pass 1** `_map_threads_to_initiatives`: LLM map mỗi thread → No(s). Cho phép 1 thread
+    update NHIỀU init (modelling↔personalization) và NHIỀU thread cùng 1 init.
+  - **Gộp hybrid**: thread map đúng **1 init** → gộp chronological (latest thắng) — vd
+    "Partner 2 — onboarding" + "Onboard Partner A" → #2 (ra kế hoạch 2-phase mới nhất).
+    Thread **đa-init** → giữ nguyên (tránh lẫn) → #3/#10 không nhiễu của nhau.
+- **Pass 2** extract: LLM (`/no_think`, `seed=7`, `max_tokens=8000`) trả JSON theo `No`:
   {status, new_timing, **timing_start, timing_months**, details, confidence, pic, metric_claims}.
-  - Prompt: **recency wins**; **1 thread có thể cập nhật NHIỀU initiative** (vd timing của
-    "personalization" nằm trong chain "new modelling").
-  - **Tính tháng bằng CODE** (`_add_months`): LLM chỉ trích `timing_start` + `timing_months`,
+  - Prompt: **recency wins** (tin mới đảo tin cũ, kể cả reversal qua thread khác tên);
+    **disambiguate same-name initiatives** theo planned timing/persona (vd 2 init "Add 1 partner").
+  - **Tính tháng bằng CODE** (`_add_months`): LLM trích `timing_start`+`timing_months`,
     code cộng → "cuối T6 + 2 tháng" = Aug-26 (LLM tự tính tháng không đáng tin).
 - Điền 5 cột status; row không có update → **carry-forward** từ X-1.
-  Rule roll-forward: no-email + timing X-1 đã qua + details "deployed/done" → "Live".
+- **Completeness sweep / roll-forward (Rule B)**: init không email + planned/new timing đã qua
+  + prev "ready to pilot / deployed / done" → roll thành **Live** (vd #1 ready-pilot May → Live ở T6).
 - `metric_claims` (level metric email khẳng định) → lưu context cho Rule 3 (Step 7 reconcile).
+- Helper LLM dùng chung `_chat_json` / `_json_obj` (hỗ trợ cả model reasoning). ~3 LLM call/run.
 - Vocab status: Not started / On Track / Delay / Deprioritized / Done / Live.
 - Ghi file giữ template (`tracker_writer`, lock-resilient). Fallback `sample_emails.json` nếu không có Gmail.
 
@@ -164,9 +168,13 @@ src/
 - **qwen3 là model "thinking"** → với prompt lớn dễ treo (đã gặp 363s). Bắt buộc tắt thinking:
   thêm `/no_think` vào prompt + `extra_body={"chat_template_kwargs":{"enable_thinking":false}}`
   + `max_tokens` + `timeout` + `max_retries=0` + `seed`. Sau fix ~15–28s/run.
-- **Đọc email đúng**: gộp thread gần trùng tên (bỏ hậu tố "(...)"), giữ ~4 message mới nhất/thread
-  (email quote nội dung cũ inline gây nhiễu), prompt "recency wins" + cho 1 thread update nhiều
-  initiative. **Tính tháng bằng code** (`timing_start`+`timing_months`) vì LLM tính tháng sai.
+- **Đọc email đúng (2-pass)**: Pass-1 map thread→initiative No(s); **gộp** thread cùng 1 init
+  (kể cả khác tên: "Partner 2 — onboarding" + "Onboard Partner A" → #2), **giữ riêng** thread
+  đa-init (tránh lẫn #3↔#10). Giữ ~4 msg mới nhất/thread. Prompt: recency wins (đảo ngược qua
+  thread khác tên), disambiguate same-name theo timing, completeness sweep (ready+past→Live).
+  **Tính tháng bằng code** (`timing_start`+`timing_months`) vì LLM tính tháng sai.
+- **Bộ lọc email** linh hoạt: `[Product]/[CL]/[Partnership(s)]` + từ khoá `initiative`/`partner`
+  (tránh sót email tiêu đề biến thể). Nếu BTC dùng tag khác → nới `RELEVANT_SUBJECT`.
 - Email Gmail trả **newest-first** → phải sort theo ngày để LLM lấy đúng message mới nhất.
 - **Lock-resilient writes**: khi file output đang MỞ trong Excel (PermissionError), Step3/4
   (`excel_io.save_sheet`), tracker (`tracker_writer`) và step7 docx ghi đè sang bản "(n)" đầu
