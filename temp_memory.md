@@ -181,3 +181,39 @@
 - Full 7 step OK; deliverable chính giờ là **.docx phân tích** (thay PDF). 2 LLM call/run (cào email + viết narrative) → ~1–2 phút.
 - Data folder demo: `D:\Hackathon2026\report_generate\Report_Sample` (có đủ Excel + Initiatives tracker tháng 5,6).
 - Mẫu tham chiếu: `Report_05-2026.docx` ở project root.
+---
+
+# Session: 2026-06-16 (đợt 3 — submission, quality rules, email-reading fixes)
+
+## Submission / đóng gói
+- Bản nộp chạy **offline**: `DATA_SOURCE_MODE=manual` đọc `sample_emails.json` (email tổng hợp, ẩn danh) → KHÔNG cần Google.
+- **Bake LLM key + manual mode làm default trong `src/config.py`** → fresh clone chạy ngay không cần `.env` (key GreenNode là key nền tảng, user chấp nhận; nhớ ROTATE sau chấm). env vẫn override.
+- `SUBMISSION.md` (hướng dẫn BTC), `run_agent.py` zero-config trỏ `Report_Sample/`, `git archive` ra `submission.zip` (gitignored, có .env). GitHub push: secrets vẫn sạch.
+- `run_agent_reportgenerate.bat`: in banner link (localhost + LAN khi HOST=0.0.0.0).
+- Web UI: checklist **prerequisites** 5 mục (4 Excel + thư mục Initiatives tracker ≥1 file), thiếu → chặn chạy.
+
+## Banner nguồn dữ liệu + auto-refresh sample
+- Step 1 in banner ">>> DATA SOURCE: LIVE GMAIL (N)" hoặc "sample_emails.json (N)".
+- Khi chạy LIVE: tự ghi email (đã **ẩn danh** mọi địa chỉ → personN@demo.local, lọc relevant) vào `sample_emails.json` để bản manual/BTC khớp live. `extractor.anonymize_and_filter`.
+
+## quality_rules.md (cross-check 16 rule)
+- Reasonable; áp dụng 15/16. Deterministic: 14 (Step1 không bịa initiative), 15 (Step4 không bake initiative delayed — chỉ tính uplift khi new timing đúng X+1), 16, 3, 7. Prompt-enforced (best-effort): 1,2,4,5,9,11,12.
+- **Rule 16**: top-3 = impact desc → timeline asc (theo user); THÊM đoạn **"Escalations"** riêng (deterministic, Section 4) liệt kê initiative Delay/Deprioritized theo impact giảm dần.
+- **Rule 7** (real vs mechanical): `report_writer._movement_notes` — metric tuyệt đối tăng nhưng rate (%) đứng yên → MECHANICAL; rate cải thiện → REAL. Render "Movement check" dưới bảng KPI + feed prompt.
+- **Rule 3** (source conflict): extractor trích `metric_claims` (level email khẳng định); `report_writer._reconcile_claims` so với actuals (2pp/10% tolerance) → mục "To verify — source conflicts".
+
+## Fix email-reading (qwen3) — QUAN TRỌNG
+Vấn đề gặp: #3 "New modelling" lấy nhầm message cũ (Gini 0.2) thay vì mới (0.3); #10 thiếu new timing.
+- **Gộp thread gần trùng**: `normalize_subject` bỏ hậu tố "(...)" cuối → 2 chain "New modelling" và "...(Sep-26)" thành 1 thread.
+- **Giữ ~4 message mới nhất/thread** (`group_threads` sort tăng dần + `[-4:]`) — email quote nội dung cũ INLINE (không có ">"), gây nhiễu recency; cắt bớt → LLM bám kết luận mới.
+- Prompt: "RECENCY WINS", "1 thread có thể update NHIỀU initiative" (timing #10 nằm trong chain #3).
+- **Tính tháng bằng CODE**: LLM xuất `timing_start` + `timing_months`; `extractor._add_months` cộng → "cuối T6 + 2 tháng" = Aug-26 (LLM tự tính ra Sep/Oct → sai). 
+- `seed=7` cho extraction ổn định hơn (endpoint không đảm bảo 100%).
+- Kết quả: #3 = "Gini 0.3 gần ngưỡng", Sep-26; #10 = Delay, Aug-26. Ổn định nhiều lần chạy.
+
+## Lock-resilient Excel/docx writes
+- `excel_io.save_sheet` (Step3/4), `tracker_writer`, step7 docx: khi file đang MỞ trong Excel (PermissionError) → ghi đè bản "(n)" đầu tiên (không đẻ (1)…(99)).
+- **Bài học vận hành**: ĐỪNG mở file output trong Excel khi chạy agent — file khoá khiến ghi sang bản phụ. (Đã gặp: tracker tháng 6 mở trong Excel → agent ghi (1)…(13), file gốc giữ giá trị cũ → tưởng đọc sai email; thực ra extraction đúng.)
+
+## Trạng thái cuối (đợt 3)
+- GitHub @ ~675abef, đầy đủ + sạch secret/PII. Tracker tháng 6 canonical: #3 Gini 0.3/Sep-26, #10 Delay/Aug-26.

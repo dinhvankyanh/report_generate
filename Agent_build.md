@@ -70,7 +70,8 @@ src/
     ├── step6_annual_progress.py
     ├── step7_generate_report.py   # render .docx phân tích (python-docx) — ACTIVE
     ├── step7_generate_pdf.py      # (legacy, không còn dùng)
-    ├── tracker_writer.py          # writer chung giữ template tracker
+    ├── tracker_writer.py          # writer chung giữ template tracker (lock-resilient)
+    ├── excel_io.py                # save_sheet lock-resilient (Step 3 & 4)
     └── metrics_format.py          # No/Unit + format %/số làm tròn theo Metrics
 ```
 
@@ -82,14 +83,26 @@ src/
 - Clone **skeleton từ tháng X-1** (giữ nguyên title row, hint row, header, dòng section
   "Strategic unlock"/"Incremental improvements", và 4 cột kế hoạch: No, Initiative Names,
   Timing, Expected impact).
-- Cào email Gmail 6 tháng → gom theo **thread** (sort theo ngày, mới nhất ở cuối) → đưa cho
-  **LLM** cùng danh sách initiative (kèm status/new timing/details tháng X-1) → LLM trả JSON
-  updates theo `No`: {status, new_timing, details, confidence, pic}.
-- Điền 5 cột status (PIC, Status, New timing, Details from that month, How confident);
-  row không có update → **carry-forward** từ X-1.
-- Rule roll-forward: no-email + timing X-1 đã qua + details "deployed/done" → status "Live".
+- Cào email Gmail 6 tháng → in **banner nguồn dữ liệu** (">>> DATA SOURCE: LIVE GMAIL (N)"
+  hoặc "sample_emails.json (N)"). Khi LIVE: tự ghi email (ẩn danh địa chỉ → personN@demo.local,
+  lọc relevant) vào `sample_emails.json` để bản offline/BTC khớp live.
+- Gom email theo **thread**:
+  - `normalize_subject` bỏ tiền tố Re/Fwd **và hậu tố "(...)"** → gộp 2 thread gần trùng tên
+    (vd "... new segments" và "... new segments (Sep-26)" thành 1).
+  - Sort message tăng dần theo ngày, **chỉ giữ ~4 message mới nhất/thread** (email quote nội
+    dung cũ inline gây nhiễu "recency").
+- Đưa cho **LLM** (qwen3, `/no_think`, `seed=7`) cùng danh sách initiative (kèm status/new
+  timing/details tháng X-1) → LLM trả JSON theo `No`:
+  {status, new_timing, **timing_start, timing_months**, details, confidence, pic, metric_claims}.
+  - Prompt: **recency wins**; **1 thread có thể cập nhật NHIỀU initiative** (vd timing của
+    "personalization" nằm trong chain "new modelling").
+  - **Tính tháng bằng CODE** (`_add_months`): LLM chỉ trích `timing_start` + `timing_months`,
+    code cộng → "cuối T6 + 2 tháng" = Aug-26 (LLM tự tính tháng không đáng tin).
+- Điền 5 cột status; row không có update → **carry-forward** từ X-1.
+  Rule roll-forward: no-email + timing X-1 đã qua + details "deployed/done" → "Live".
+- `metric_claims` (level metric email khẳng định) → lưu context cho Rule 3 (Step 7 reconcile).
 - Vocab status: Not started / On Track / Delay / Deprioritized / Done / Live.
-- Ghi file giữ đúng template (qua `tracker_writer`). Fallback `sample_emails.json` nếu không có Gmail.
+- Ghi file giữ template (`tracker_writer`, lock-resilient). Fallback `sample_emails.json` nếu không có Gmail.
 
 **Step 2 — Status change**
 - So Status tháng X vs X-1: khác → "Yes", giống → "No", mới → "Yes".
@@ -110,7 +123,9 @@ src/
 - Cột: `No | Metric | Unit | {X} (actual) | {X+1} (forecast) | Initiative notes`.
 
 **Step 5 — Top 3 priorities** (markdown trong `Top 3 priorities/`)
-- Lọc bỏ Live/Done/Deprioritized + section → sắp xếp impact giảm dần, rồi timeline gần→xa → lấy 3.
+- Lọc bỏ Live/Done/Deprioritized + section → sắp xếp **impact giảm dần, rồi timeline gần→xa** → lấy 3.
+- Initiative high-impact đang **Delay/Deprioritized** được liệt kê riêng ở đoạn **Escalations**
+  trong report (xem Step 7), không trộn vào top-3.
 
 **Step 6 — Overall progress vs Annual planning** (markdown)
 - Tách (i) Strategic Unlock / (ii) Incremental Improvements.
@@ -122,10 +137,14 @@ src/
 - Bố cục (mỗi phần tách Structural ceiling unlocks vs Incremental acquisition/retention):
   - **Header**: report code + dòng meta (Reporting month / Latest actual / Forecast month) + Data basis.
   - **KPI snapshot — funnel** (bảng `Metric | Unit | {X-1} | {X} | MoM | {X} Plan | vs Plan`) + đoạn "Read:".
+  - **KPI snapshot** kèm dòng **"Movement check"** (Rule 7 — deterministic): metric tuyệt đối
+    tăng nhưng rate đứng yên → MECHANICAL; rate cải thiện → REAL.
   - **1. Performance Overview**: Headline → MoM bridge (fact, phân rã có số) → Plan-miss bridge → bullet Structural/Incremental ánh xạ initiative.
   - **2. Next Month Run-Rate**: run-rate + structural/incremental.
   - **3. Top Priorities** (bảng `# | Objective/lever | Initiative & owner | Target & why`).
-  - **4. Progress Toward Annual Plan**: bảng Structural (Confidence/Status) + Incremental (Impact/Status) + YTD vs plan & FY outlook + Risks.
+  - **4. Progress Toward Annual Plan**: bảng Structural (Confidence/Status) + Incremental (Impact/Status)
+    + YTD vs plan & FY outlook + Risks + **Escalations** (bảng deterministic: initiative Delay/Deprioritized,
+    impact giảm dần) + **To verify — source conflicts** (Rule 3: email vs actuals lệch quá ngưỡng).
 - **Màu** (khớp mẫu): xanh `#1F4E79` cho title(18pt)/sub-heading(11pt)/Heading1/nền header bảng (chữ trắng); xám `#595959` cho subtitle + Data basis; bold nhãn dẫn (Headline./MoM bridge./Read:).
 - Fallback đổi tên `(n).docx` nếu file đang mở; nếu LLM không cấu hình → render bảng + text tối thiểu.
 
@@ -144,8 +163,14 @@ src/
 ## 6. Lưu ý kỹ thuật quan trọng
 - **qwen3 là model "thinking"** → với prompt lớn dễ treo (đã gặp 363s). Bắt buộc tắt thinking:
   thêm `/no_think` vào prompt + `extra_body={"chat_template_kwargs":{"enable_thinking":false}}`
-  + `max_tokens` + `timeout` + `max_retries=0`. Sau fix ~15–28s/run.
+  + `max_tokens` + `timeout` + `max_retries=0` + `seed`. Sau fix ~15–28s/run.
+- **Đọc email đúng**: gộp thread gần trùng tên (bỏ hậu tố "(...)"), giữ ~4 message mới nhất/thread
+  (email quote nội dung cũ inline gây nhiễu), prompt "recency wins" + cho 1 thread update nhiều
+  initiative. **Tính tháng bằng code** (`timing_start`+`timing_months`) vì LLM tính tháng sai.
 - Email Gmail trả **newest-first** → phải sort theo ngày để LLM lấy đúng message mới nhất.
+- **Lock-resilient writes**: khi file output đang MỞ trong Excel (PermissionError), Step3/4
+  (`excel_io.save_sheet`), tracker (`tracker_writer`) và step7 docx ghi đè sang bản "(n)" đầu
+  tiên. **Không mở file output trong Excel khi chạy agent** — sẽ ghi sang bản phụ thay vì file gốc.
 - Lọc bỏ file lock Excel `~$*.xlsx` khỏi finder tracker.
 - Web local vì browser không truy cập được folder tuỳ ý; deploy cloud sẽ MẤT khả năng đọc folder local.
 - **Skeleton tháng X-1**: lấy file tracker gần nhất ≤ X-1 (report T7 → clone T6; thiếu T6 → fallback T5).
