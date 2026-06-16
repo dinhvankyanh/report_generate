@@ -179,10 +179,14 @@ Field rules:
   some uncertainty or "sẽ cố gắng nhưng không chắc" -> "Medium"; no commitment / timeline unconfirmed / blocked / cannot start -> "Low".
   Leave "" only when there is genuinely no signal at all.
 - "pic": "Persona N" only if explicitly identifiable; else "".
+- "metric_claims": list of CURRENT-LEVEL metric values the email explicitly asserts
+  (for cross-checking vs the actuals sheet). Each = {{"metric": "<metric name>",
+  "level": "<value, e.g. 65% or 30000>"}}. ONLY actual current levels (e.g.
+  "approval rate ~65%"); do NOT include promises/uplifts like "+10pp". Empty list if none.
 - Never invent facts not supported by the email thread or last month's row.
 
 Return ONLY valid JSON, no prose:
-{{"updates": [{{"no": <int>, "status": "", "new_timing": "", "details": "", "confidence": "", "pic": ""}}]}}"""
+{{"updates": [{{"no": <int>, "status": "", "new_timing": "", "details": "", "confidence": "", "pic": "", "metric_claims": []}}]}}"""
 
 
 def extract_initiative_updates(initiatives: List[dict], emails: List[dict],
@@ -266,6 +270,8 @@ def _parse_updates(content: str) -> List[dict]:
         conf = (u.get("confidence") or "").strip().capitalize()
         if conf and conf not in CONFIDENCE_VOCAB:
             conf = ""
+        claims = u.get("metric_claims") or []
+        claims = [c for c in claims if isinstance(c, dict) and c.get("metric") and c.get("level")]
         updates.append({
             "no": no,
             "status": status,
@@ -273,6 +279,7 @@ def _parse_updates(content: str) -> List[dict]:
             "details": (u.get("details") or "").strip(),
             "confidence": conf,
             "pic": (u.get("pic") or "").strip(),
+            "metric_claims": claims,
         })
     return updates
 

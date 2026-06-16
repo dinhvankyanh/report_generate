@@ -140,6 +140,23 @@ class Step1GetInitiativesData(BaseStep):
 
         self.log(f"Applied email updates to {matched} initiative(s)", "success")
 
+        # Collect metric claims from email (Rule 3: reconcile vs actuals later)
+        name_by_no = {_as_int(r.get(COL_NO)): _clean_str(r.get(COL_NAME))
+                      for _, r in current.iterrows() if _as_int(r.get(COL_NO)) is not None}
+        claims = []
+        for u in updates:
+            for c in (u.get("metric_claims") or []):
+                claims.append({
+                    "no": u.get("no"),
+                    "initiative": name_by_no.get(u.get("no"), ""),
+                    "owner": u.get("pic", ""),
+                    "metric": c.get("metric", ""),
+                    "level": c.get("level", ""),
+                })
+        context["email_metric_claims"] = claims
+        if claims:
+            self.log(f"Captured {len(claims)} email metric claim(s) for reconciliation")
+
         # 6. Save to context (sections kept; Step 6 needs them)
         context["initiatives_data"] = current
         context["tracker_raw"] = raw

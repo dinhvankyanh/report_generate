@@ -162,6 +162,10 @@ class Step7GenerateReport(BaseStep):
         else:
             para("", space_after=4)
 
+        # Movement check (Rule 7) — deterministic real-vs-mechanical flags
+        if data.get("movement"):
+            label_para("Movement check: " + " ".join(data["movement"]))
+
         # --- 1. Performance Overview ---
         heading("1. Performance Overview and Analysis")
         for key in ("headline", "mom_bridge", "plan_miss_bridge"):
@@ -237,6 +241,17 @@ class Step7GenerateReport(BaseStep):
 
         subhead("Risks, dependencies & escalations")
         bullets(nar.get("risks"))
+
+        # To-verify: source conflicts (Rule 3) — deterministic
+        conflicts = data.get("conflicts") or []
+        if conflicts:
+            subhead("To verify — source conflicts (email vs actuals)")
+            bullets([
+                f"{c['metric']}: email"
+                + (f" ({c['owner']})" if c.get("owner") else "")
+                + f" says {c['email_value']} vs actuals sheet {c['sheet_value']} — reconcile."
+                for c in conflicts
+            ])
 
         doc.save(str(path))
 

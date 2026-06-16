@@ -90,10 +90,98 @@ def _signed(v, suffix):
     return f"{n:+d}{suffix}"
 
 
+def _n(s) -> str:
+    return re.sub(r'[^a-z0-9]', '', str(s).lower())
+
+
+# Each conversion-stage absolute metric and the rate that drives it
+_RULE7_PAIRS = [
+    ("Eligible Base For Cash Loan", "%Eligible/Total User Base"),
+    ("Traffic to Landing Page", "%Traffic/Eligible"),
+    ("Submission", "%Submission/Traffic"),
+    ("Approved", "%Approval Rate"),
+]
+
+
+def _movement_notes(perf) -> list:
+    """
+    Rule 7: distinguish real vs mechanical movement. For each conversion-stage
+    metric, if the absolute moved but its conversion rate stayed flat, the move
+    is base-driven (mechanical); if the rate itself moved, it is real.
+    """
+    if perf is None or getattr(perf, "empty", True):
+        return []
+    vals = {}
+    for _, r in perf.iterrows():
+        vals[_n(r.get("Metric", ""))] = (_f(r.get("Actual (Previous)")),
+                                         _f(r.get("Actual (Current)")))
+    notes = []
+    for abs_name, rate_name in _RULE7_PAIRS:
+        a = vals.get(_n(abs_name))
+        rt = vals.get(_n(rate_name))
+        if not a or not rt:
+            continue
+        (ap, ac), (rp, rc) = a, rt
+        abs_mom = (ac / ap - 1) * 100 if ap else 0.0
+        rate_pp = (rc - rp) * 100  # rates stored as ratios (0..1)
+        if abs(abs_mom) >= 5 and abs(rate_pp) < 1:
+            notes.append(f"{abs_name} {abs_mom:+.0f}% — MECHANICAL "
+                         f"(base-driven; {rate_name} flat).")
+        elif abs(rate_pp) >= 1:
+            notes.append(f"{abs_name} — REAL ({rate_name} {rate_pp:+.0f}pp).")
+    return notes
+
+
 def _impact_score(impact_str: str) -> float:
     """Largest +Xpp / +X% magnitude in an expected-impact string (0 if none)."""
     nums = re.findall(r'\+?(\d+(?:\.\d+)?)\s*(?:pp|%)', str(impact_str))
     return max((float(n) for n in nums), default=0.0)
+
+
+def _reconcile_claims(claims, perf) -> list:
+    """
+    Rule 3: compare numeric LEVELS asserted in emails against the actuals sheet.
+    Returns conflict dicts {metric, email_value, sheet_value, owner, initiative}
+    only when a confident metric match differs beyond tolerance.
+    """
+    import difflib
+    if not claims or perf is None or getattr(perf, "empty", True):
+        return []
+
+    # Build {normalized metric name: (display, current_value, is_pct)}
+    sheet = {}
+    for i, (_, r) in enumerate(perf.iterrows()):
+        name = str(r.get("Metric", ""))
+        unit = meta_for(name, i)["unit"]
+        sheet[_n(name)] = (name, _f(r.get("Actual (Current)")), is_pct(unit))
+    names = list(sheet.keys())
+
+    conflicts = []
+    for c in claims:
+        m = re.search(r'-?\d+(?:[.,]\d+)?', str(c.get("level", "")))
+        if not m:
+            continue
+        num = float(m.group(0).replace(",", ""))
+        has_pct = "%" in str(c.get("level", ""))
+        key = _n(c.get("metric", ""))
+        if key not in sheet:
+            match = difflib.get_close_matches(key, names, n=1, cutoff=0.6)
+            if not match:
+                continue
+            key = match[0]
+        disp, cur, pct = sheet[key]
+        if pct:
+            claim_pct = num if (has_pct or num > 1.5) else num * 100
+            sheet_pct = cur * 100
+            if abs(claim_pct - sheet_pct) > 2:  # >2pp apart
+                conflicts.append({"metric": disp, "email_value": f"{claim_pct:.0f}%",
+                                  "sheet_value": f"{sheet_pct:.0f}%",
+                                  "owner": c.get("owner", ""), "initiative": c.get("initiative", "")})
+        elif cur and abs(num - cur) / abs(cur) > 0.10:  # >10% apart
+            conflicts.append({"metric": disp, "email_value": f"{num:,.0f}",
+                              "sheet_value": f"{cur:,.0f}",
+                              "owner": c.get("owner", ""), "initiative": c.get("initiative", "")})
+    return conflicts
 
 
 def _fmt_mom(prev, cur, unit):
@@ -206,6 +294,8 @@ def build_report_data(context, month, year, data_source):
         "structural": structural,
         "incremental": incremental,
         "escalations": escalations,
+        "movement": _movement_notes(perf),
+        "conflicts": _reconcile_claims(context.get("email_metric_claims"), perf),
         "forecast": {
             "disb_cur": round(disb_cur) if disb_cur is not None else None,
             "disb_next": round(disb_next) if disb_next is not None else None,
@@ -316,6 +406,9 @@ REPORT: {meta['report_code']} — reporting month {meta['report_month']} {meta['
 
 KPI FUNNEL (actuals vs plan; numbers are final — reference them, do not change):
 {funnel_txt}
+
+MOVEMENT CHECK (real vs mechanical — use this in the MoM bridge; do not contradict):
+{chr(10).join('  - ' + m for m in rd['movement']) or '  (none)'}
 
 STRUCTURAL initiatives (eligible base / approval rate / scoring models):
 {init_txt(rd['structural'])}
