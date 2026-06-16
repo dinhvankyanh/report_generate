@@ -2,9 +2,9 @@
 Step 3: Performance Analysis
 Calculate MoM change and vs KPI for each metric
 """
+from datetime import datetime
 from typing import Dict, Any
 import pandas as pd
-import numpy as np
 from .base import BaseStep, StepResult
 from .. import config
 
@@ -200,6 +200,3 @@ class Step3PerformanceAnalysis(BaseStep):
                 self.log(f"Saved to {perf_file}")
         except Exception as e:
             self.log(f"Could not save to Excel: {e}", "warn")
-
-
-from datetime import datetime  # Import at module level

@@ -3,9 +3,8 @@ Base data source interface for Report Generate Agent
 This allows flexible switching between email and manual input modes
 """
 from abc import ABC, abstractmethod
-from typing import Dict, List, Any
 import pandas as pd
-from datetime import datetime
+
 
 class BaseDataSource(ABC):
     """
@@ -22,25 +21,13 @@ class BaseDataSource(ABC):
         }.get(level, "[INFO]")
         print(f"{prefix} {message}")
 
-    @abstractmethod
     def get_initiatives_data(self, month: int, year: int) -> pd.DataFrame:
         """
-        Get initiatives data for a specific month/year
-
-        Returns DataFrame with columns:
-        - No
-        - Initiative Names
-        - Timing
-        - Expected impact
-        - PIC
-        - Status
-        - Status change
-        - New timing (if applicable)
-        - Details from that month
-        - How confident
-        - Actual impact (if lived)
+        Read the month's Initiatives tracker as a DataFrame. Implemented by the
+        manual source (which reads the Excel skeleton); the email source inherits
+        this default since Step 1 always reads the X-1 skeleton via the manual source.
         """
-        pass
+        return None
 
     @abstractmethod
     def get_performance_data(self) -> pd.DataFrame:
@@ -57,13 +44,6 @@ class BaseDataSource(ABC):
         Return a list of raw emails ({id, subject, sender, date, body}) over the
         last `lookback_months` months. Default [] (no email access); overridden
         in EmailDataSource.
-        """
-        return []
-
-    def get_email_updates(self, month: int, year: int, lookback_months: int = 6) -> list:
-        """
-        Return regex-parsed initiative updates (legacy). Default []; overridden
-        in EmailDataSource. Step 1 prefers the LLM extractor.
         """
         return []
 

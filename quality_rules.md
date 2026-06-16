@@ -62,8 +62,24 @@ Examples below use our own initiatives (numbered as in the Annual Plan) so the r
 **15. Forecasts must state their basis.** Next-month run-rate (Section 2) is anchored on the plan, adjusted for known slips — and says so. Do not bake the promised impact of a *delayed* initiative into next month's number.
 > Initiative 2 is delayed ~2 months → its eligible +10% must NOT appear in next month's run-rate.
 
-**16. Top-priority selection follows a stated rule, not vibes.** Priorities = high promised-impact initiatives that are delayed, blocked, or at-risk.
-> Initiative 2 (high impact, now delayed) and Initiative 7 (blocked — FP&A won't fund the costly channel) are the natural priorities/escalations to surface.
+**16. Top-priority selection follows a stated rule, not vibes.** Two distinct lists, each with its own rule:
+- **Top priorities (next month):** active, deliverable initiatives ranked by *promised impact (high → low)*, then *timeline (nearest → furthest)*. Exclude already-shipped (Live/Done) and dropped (Deprioritized) items, and section rows. These are the "what to push now" levers.
+- **Escalations (separate section):** high promised-impact initiatives that are *delayed, blocked, or at-risk*, ordered by impact (high → low). These need leadership attention but are not the same as the next-month execution priorities.
+> Top priorities surface near-term, high-impact levers to execute. Escalations separately flag e.g. Initiative 2 (high impact, now delayed) and Initiative 7 (blocked — FP&A won't fund the costly channel). An on-track high-impact initiative with a near timeline belongs in Top priorities; a delayed one belongs in Escalations — never conflate the two.
+
+---
+
+## F. Data lineage and cross-file consistency
+
+**17. Three ground-truth source files.** *Actual performance*, *KPI*, and the *Initiatives tracker for month X-1* are the source-of-truth inputs. All downstream logic must align with these three — every derived figure or statement traces back to them. The three sources must ALSO be internally consistent **with each other**: if they disagree on a fact (e.g. a KPI/plan that contradicts what the actuals or the tracker imply), then one of the source files is wrong. Surface the inconsistency — do not silently reconcile or pick one.
+
+**18. Respect the derivation chain.** Each artifact is produced ONLY from its declared inputs; never introduce a number/claim into a file that cannot be derived from those inputs:
+- *Performance analysis* ← Actual + KPI
+- *Initiatives tracker (month X)* ← Initiatives tracker (X-1) + email data
+- *Forecast* ← Actual + Initiatives tracker (X)
+- *Report* ← Actual + KPI + Initiatives tracker (X) + Performance analysis + Forecast
+
+**19. End-to-end logical alignment.** Actual, KPI, Initiatives tracker (X), Performance analysis, Forecast, and Report must all tell ONE consistent story. Any fact that appears in more than one file must match across them — e.g. June %Approval Rate is identical in Actual, Performance analysis, and Report; an initiative's status / new timing is identical in the tracker, the Forecast notes, and the Report (top priorities & escalations). Any divergence across these files is a bug in one of them, not an acceptable rounding/wording difference.
 
 ---
 

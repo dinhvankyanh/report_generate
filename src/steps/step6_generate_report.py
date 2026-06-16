@@ -1,6 +1,7 @@
 """
-Step 7: Generate the monthly business report as a .docx, mirroring the layout,
-wording and logic of the reference report (Report_05-2026.docx).
+Step 6: Generate the monthly business report as a .docx. The layout, wording and
+logic were learned from a reference report during development and are now fixed
+in code (this renderer + STYLE_GUIDE in src/llm/report_writer.py).
 
 Numbers/tables are computed deterministically; the analytical prose is written
 by the LLM (see src/llm/report_writer.py).
@@ -23,10 +24,10 @@ def _shade(cell, hex_color="E1E6F0"):
     tcPr.append(shd)
 
 
-class Step7GenerateReport(BaseStep):
+class Step6GenerateReport(BaseStep):
     @property
     def name(self) -> str:
-        return "Step 7: Generate Report (.docx)"
+        return "Step 6: Generate Report (.docx)"
 
     @property
     def description(self) -> str:
@@ -151,7 +152,10 @@ class Step7GenerateReport(BaseStep):
              "Initiative Tracker (status as of end-" + f"{meta['report_month']} {year}). "
              "Structure follows the fixed four-part format; each section is split into "
              "Structural ceiling unlocks and Incremental acquisition / retention improvements.",
-             size=8.5, space_after=8, color=GREY)
+             size=8.5, space_after=2, color=GREY)
+        para("AI-generated. This report was produced automatically by an AI agent "
+             "(narrative written by an LLM, figures computed deterministically). Review "
+             "before use.", size=8.5, space_after=8, color=GREY)
 
         # --- KPI snapshot ---
         subhead("KPI snapshot — Cash Loan funnel")
@@ -179,6 +183,16 @@ class Step7GenerateReport(BaseStep):
         subhead("Incremental acquisition / retention improvements")
         bullets(nar.get("incremental_bullets") or self._fallback_bullets(data["incremental"]))
 
+        # Initiative delivery — expected vs realized (Rules 4/5/9/13, deterministic):
+        # guarantees every initiative is accounted for with promised-vs-realized,
+        # independent of the narrative.
+        rc = data.get("realized_check") or []
+        if rc:
+            subhead("Initiative delivery — expected vs realized")
+            table(["#", "Initiative", "Status", "Promised", "Realized", "Verdict"],
+                  [[r["no"], r["name"], r["status"], r["promised"], r["realized"], r["verdict"]]
+                   for r in rc])
+
         # --- 2. Next month run-rate ---
         heading(f"2. Next Month ({meta['next_month']}) Run-Rate and Key Initiatives")
         if nar.get("runrate"):
@@ -194,16 +208,18 @@ class Step7GenerateReport(BaseStep):
             bullets(nar["runrate_incremental"])
 
         # --- 3. Top priorities ---
+        # Selection is DETERMINISTIC (Rule 16: active deliverable initiatives,
+        # impact desc; Live/Done/Deprioritized excluded). The LLM only writes the
+        # "why" for each pre-selected priority, matched by order.
         heading(f"3. Top Priorities for Next Month ({meta['next_month']})")
-        tp = nar.get("top_priorities") or []
-        if tp:
-            table(["#", "Objective / lever", "Initiative & owner", "Target outcome & why it matters"],
-                  [[i + 1, r.get("objective", ""), r.get("initiative_owner", ""), r.get("target_why", "")]
-                   for i, r in enumerate(tp)])
-        else:
-            table(["#", "Initiative", "Status", "Timing", "Expected impact"],
-                  [[i + 1, r["name"], r["status"], r["timing"], r["expected_impact"]]
-                   for i, r in enumerate(data["top_priorities"])])
+        pre = data["top_priorities"]
+        whys = nar.get("top_priorities") or []
+        if pre:
+            rows = []
+            for i, r in enumerate(pre):
+                why = whys[i].get("target_why", "") if i < len(whys) and isinstance(whys[i], dict) else ""
+                rows.append([i + 1, r["objective"], r["initiative_owner"], why or r["expected_impact"]])
+            table(["#", "Objective / lever", "Initiative & owner", "Target outcome & why it matters"], rows)
 
         # --- 4. Annual plan progress ---
         heading("4. Progress Toward Annual Plan")
@@ -241,6 +257,22 @@ class Step7GenerateReport(BaseStep):
             table(["Initiative", "Owner", "Status", "Impact", "New timing", "Note"],
                   [[e["name"], e["pic"], e["status"], e["expected_impact"],
                     (e["new_timing"] or "-"), e["details"]] for e in esc])
+
+        # Unaddressed plan gaps — metric below plan with NO active initiative behind
+        # it (deterministic). This is the miss-driver that falls through both the
+        # Top Priorities (not actionable) and Escalations (not delayed) lists.
+        gaps = data.get("gaps") or []
+        if gaps:
+            subhead("Plan gaps without an active remediation initiative")
+            bullets([
+                f"{g['metric']}: {g['actual']} vs {g['plan']} plan ({g['gap']}) — "
+                + (f"linked initiative {', '.join(g['shipped'])} already Live/Done but the "
+                   f"residual gap is not closed" if g['shipped']
+                   else "no initiative is linked to this lever")
+                + "; no active initiative is in the pipeline to close it — a remediation "
+                  "initiative / owner is needed."
+                for g in gaps
+            ])
 
         subhead("Risks, dependencies & escalations")
         bullets(nar.get("risks"))

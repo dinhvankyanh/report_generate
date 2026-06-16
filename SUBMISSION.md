@@ -15,7 +15,7 @@ tài khoản Google của tác giả.
   đã đặt sẵn làm mặc định trong code (`src/config.py`). Không cần `.env`, không cần
   tài khoản/credentials Google. Dữ liệu mẫu đi kèm trong `Report_Sample/`.
 
-> Dù chấm qua **clone GitHub** hay **giải nén ZIP**, các bước ở mục 2 đều chạy được luôn.
+> Sau khi **clone repo GitHub**, các bước ở mục 2 chạy được luôn.
 
 ## 2. Chạy (chọn 1 trong 2)
 
@@ -45,7 +45,7 @@ LLM_BASE_URL=...   LLM_API_KEY=...   LLM_MODEL=...
 Sinh trong `Report_Sample/`:
 - `Report/Report thang 6 nam 2026.docx` — **báo cáo chính** (4 phần phân tích).
 - `Initiatives tracker/Initiatives tracker thang 6-2026.xlsx`, `Performance analysis.xlsx`,
-  `Forecast.xlsx`, `Top 3 priorities/*.md`, `Overall progress.../*.md`.
+  `Forecast.xlsx`. (Top priorities & Overall progress nằm trong report .docx §3/§4, không xuất file riêng.)
 
 Thời gian: ~1–2 phút (2 lần gọi LLM: trích xuất email + viết narrative).
 
@@ -58,7 +58,7 @@ Report_Sample/
 ```
 
 ## 6. Ghi chú kiến trúc
-Chi tiết 7 bước, kiến trúc code, và quy tắc tính toán: xem `Agent_build.md`.
+Chi tiết các bước, kiến trúc code, và quy tắc tính toán: xem `Agent_build.md`.
 Bản chạy live (cào Gmail thật) dùng `DATA_SOURCE_MODE=email` + `credentials.json` của Google —
 KHÔNG kèm trong bản nộp vì lý do bảo mật; bản offline này tái lập đầy đủ kết quả từ
 `sample_emails.json`.

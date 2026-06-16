@@ -2,6 +2,8 @@
 .env
 gmail_token.pkl
 credentials.json
+.greennode.json
+.agentbase-state.json
 
 # Python
 __pycache__/
@@ -21,3 +23,5 @@ _*.txt
 # Submission bundle (contains LLM key — do not commit)
 submission.zip
 *.zip
+.agentbase/
+_*.json

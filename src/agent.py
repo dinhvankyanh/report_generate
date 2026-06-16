@@ -4,12 +4,21 @@ Chat-based interface for generating monthly reports
 """
 import re
 import sys
+import unicodedata
 from typing import Dict, Any, Optional
 from datetime import datetime
 
 from .data_sources import create_data_source
 from .steps import get_all_steps
 from . import config
+
+
+def _strip_diacritics(s: str) -> str:
+    """Remove Vietnamese diacritics so 'tháng'->'thang', 'năm'->'nam' (đ->d too).
+    Lets the parser accept both accented and unaccented input."""
+    s = s.replace("đ", "d").replace("Đ", "D")
+    return "".join(c for c in unicodedata.normalize("NFD", s)
+                   if unicodedata.category(c) != "Mn")
 
 
 class ReportGenerateAgent:
@@ -34,8 +43,9 @@ class ReportGenerateAgent:
             - "lam report thang 6 nam 2026" -> (6, 2026)
             - "report thang 3/2024" -> (3, 2024)
             - "generate report for June 2026" -> (6, 2026)
+            - "làm report tháng 6 năm 2026" (có dấu) -> (6, 2026)
         """
-        user_input = user_input.lower()
+        user_input = _strip_diacritics(user_input.lower())
 
         # Pattern for Vietnamese
         # "lam report thang X nam Y"
@@ -70,7 +80,7 @@ class ReportGenerateAgent:
 
     def generate_report(self, month: int, year: int) -> Dict[str, Any]:
         """
-        Execute all 7 steps to generate the report
+        Execute all pipeline steps to generate the report
 
         Args:
             month: Target month (1-12)
@@ -102,7 +112,7 @@ class ReportGenerateAgent:
         # Execute each step
         for i, step in enumerate(steps, 1):
             print(f"\n{'='*50}")
-            print(f"[{i}/7] {step.name}")
+            print(f"[{i}/{len(steps)}] {step.name}")
             print(f"{'='*50}")
 
             try:
@@ -242,9 +252,9 @@ class ReportGenerateAgent:
    - Initiatives tracker/*.xlsx
 
 4. OUTPUT:
-   - Report/Report thang X nam Y.pdf
-   - Top 3 priorities/*.md
-   - Overall progress/*.md
+   - Report/Report thang X nam Y.docx
+   - Initiatives tracker/Initiatives tracker thang X-YYYY.xlsx
+   - Performance analysis.xlsx, Forecast.xlsx
 
 5. NOTES:
    - Agent automatically finds the latest initiatives tracker file

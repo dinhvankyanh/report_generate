@@ -2,9 +2,9 @@
 Step 4: Forecast Calculation
 Calculate forecast for next month using percentage-based chain calculation
 """
+from datetime import datetime
 from typing import Dict, Any
 import pandas as pd
-import numpy as np
 from .base import BaseStep, StepResult
 from .. import config
 
@@ -157,7 +157,6 @@ class Step4Forecast(BaseStep):
 
     def _get_month_column(self, df: pd.DataFrame, month: int, year: int) -> str:
         """Find column for specific month - handles both datetime and Timestamp"""
-        from datetime import datetime
         for col in df.columns:
             if isinstance(col, (datetime, pd.Timestamp)):
                 if col.year == year and col.month == month:
@@ -505,6 +504,3 @@ class Step4Forecast(BaseStep):
                 self.log(f"{forecast_file.name} đang mở/khoá; ghi {out.name}", "warn")
         except Exception as e:
             self.log(f"Could not save forecast: {e}", "warn")
-
-
-from datetime import datetime

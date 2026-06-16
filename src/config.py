@@ -2,7 +2,18 @@
 Configuration for Report Generate Agent
 """
 import os
+import sys
 from pathlib import Path
+
+# Make stdout/stderr UTF-8 so Vietnamese log messages never crash the run on a
+# non-UTF-8 console / piped output (Windows defaults to cp1252, which cannot
+# encode 'đ' etc.). Guarded: a captured stream (e.g. the web UI's SSE writer)
+# may not support reconfigure — skip it then.
+for _stream in (sys.stdout, sys.stderr):
+    try:
+        _stream.reconfigure(encoding="utf-8", errors="replace")
+    except (AttributeError, ValueError):
+        pass
 
 # Project root directory
 PROJECT_ROOT = Path(__file__).parent.parent
@@ -26,8 +37,6 @@ SAMPLE_EMAILS_FILE = PROJECT_ROOT / "sample_emails.json"
 
 # These are (re)computed from DATA_DIR by _recompute_paths()
 INITIATIVES_TRACKER_DIR = None
-TOP_PRIORITIES_DIR = None
-OVERALL_PROGRESS_DIR = None
 REPORT_DIR = None
 METRICS_FILE = None
 KPI_FILE = None
@@ -37,11 +46,9 @@ ANNUAL_PLANNING_FILE = None
 
 def _recompute_paths():
     """Recompute all DATA_DIR-relative paths."""
-    global INITIATIVES_TRACKER_DIR, TOP_PRIORITIES_DIR, OVERALL_PROGRESS_DIR, REPORT_DIR
+    global INITIATIVES_TRACKER_DIR, REPORT_DIR
     global METRICS_FILE, KPI_FILE, ACTUAL_PERFORMANCE_FILE, ANNUAL_PLANNING_FILE
     INITIATIVES_TRACKER_DIR = DATA_DIR / "Initiatives tracker"
-    TOP_PRIORITIES_DIR = DATA_DIR / "Top 3 priorities"
-    OVERALL_PROGRESS_DIR = DATA_DIR / "Overall progress toward Annual planning"
     REPORT_DIR = DATA_DIR / "Report"
     METRICS_FILE = DATA_DIR / "Metrics.xlsx"
     KPI_FILE = DATA_DIR / "KPI.xlsx"
@@ -87,7 +94,9 @@ LLM_CONFIG = {
                                "https://maas-llm-aiplatform-hcm.api.vngcloud.vn/v1"),
     "api_key": os.environ.get("LLM_API_KEY", "vn-K-A9-gp1_t9W2gJ17GsSB-5qJiw5vkacc18e09f8fc4ea5ae057898d1d0633a7Ddj9gB-J0_E2yJ_tdkY3_WRxUedY-b"),
     "model": os.environ.get("LLM_MODEL", "qwen/qwen3-5-27b"),
-    "timeout": float(os.environ.get("LLM_TIMEOUT", "90")),
+    # The GreenNode endpoint has high per-request overhead (~11s) and can queue
+    # under load, so a single extraction call may need well over 90s. Default 180s.
+    "timeout": float(os.environ.get("LLM_TIMEOUT", "180")),
 }
 
 # Email configuration (Phase 2) - legacy IMAP (if not using Gmail API)
@@ -100,8 +109,7 @@ EMAIL_CONFIG = {
 # Ensure directories exist
 def ensure_directories():
     """Create necessary directories if they don't exist"""
-    for dir_path in [INITIATIVES_TRACKER_DIR, TOP_PRIORITIES_DIR,
-                     OVERALL_PROGRESS_DIR, REPORT_DIR]:
+    for dir_path in [INITIATIVES_TRACKER_DIR, REPORT_DIR]:
         dir_path.mkdir(parents=True, exist_ok=True)
 
 # Month mapping

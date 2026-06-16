@@ -89,7 +89,8 @@ class Step2StatusChange(BaseStep):
         if raw is not None and header_idx is not None:
             try:
                 from .tracker_writer import write_tracker
-                out_path = write_tracker(raw, header_idx, current, month, year)
+                out_path = write_tracker(raw, header_idx, current, month, year,
+                                         template_path=context.get("tracker_template_path"))
                 self.log(f"Updated tracker with Status change: {out_path.name}")
             except Exception as e:
                 self.log(f"Could not re-write tracker: {e}", "warn")

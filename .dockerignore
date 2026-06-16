@@ -1,0 +1,25 @@
+# Secrets — never bake into the image
+.env
+.env.*
+.greennode.json
+credentials.json
+gmail_token.pkl
+*.pkl
+
+# External skills repo (huge, not needed at runtime)
+greennode-agentbase-skills/
+
+# Local dev / build cruft
+.git/
+.gitignore
+__pycache__/
+*.py[cod]
+venv/
+.venv/
+.agentbase-state.json
+*.zip
+_*.txt
+
+# Docs (not needed at runtime)
+*.md
+.agentbase/

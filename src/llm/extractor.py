@@ -286,7 +286,13 @@ Field rules:
   (use "Delay" even if work has not started yet, as long as the launch was planned and is now slipping/blocked).
   Reserve "Not started" only for items not yet due with NO slippage and NO blocker mentioned.
 - "new_timing": the agreed timing (format like "Oct-26" or "Q4-2026"). Keep the previous new timing if it is still the operative target; else "".
-- "details": one concise Vietnamese sentence summarizing the situation as of {report_label} (key decision/blocker/outcome).
+- "details": one concise ENGLISH sentence summarizing the situation as of {report_label}
+  (key decision/blocker/outcome). The source emails / previous rows may be in Vietnamese —
+  translate the meaning into English. Use the FULL official metric names exactly as in the
+  tracker / Metrics (e.g. "%Approval Rate", "%Eligible/Total User Base", "new score model
+  version"). Do NOT use abbreviations or shorthand (write "new score model version", not
+  "v-next"; "%Approval Rate", not "AR") and do NOT invent your own translated phrases for a
+  metric — always use its canonical name.
 - "confidence": one of {CONFIDENCE_VOCAB}. Use the stated level if given (e.g. "confident level: medium").
   If not explicitly stated, INFER it: done/live or committed with a clear plan -> "High";
   some uncertainty or "sẽ cố gắng nhưng không chắc" -> "Medium"; no commitment / timeline unconfirmed / blocked / cannot start -> "Low".
@@ -404,11 +410,13 @@ def extract_initiative_updates(initiatives: List[dict], emails: List[dict],
         print(f"[WARNING] thread merge failed, using raw threads: {e}")
 
     # Pass 2: write the structured update. "/no_think" keeps reasoning models terse.
+    # max_tokens=4000 is ample for the JSON of ~12 initiatives (thinking is disabled);
+    # a lower ceiling also bounds worst-case generation time on the slow endpoint.
     prompt = _build_prompt(initiatives, threads, report_label) + "\n\n/no_think"
     try:
         content = _chat_json(
             [{"role": "system", "content": "You extract structured data and return strict JSON only. Do not think out loud."},
-             {"role": "user", "content": prompt}], max_tokens=8000)
+             {"role": "user", "content": prompt}], max_tokens=4000)
     except Exception as e:
         print(f"[WARNING] LLM extraction failed: {e}")
         return []

@@ -11,6 +11,7 @@
   header{padding:14px 20px;background:var(--panel);border-bottom:1px solid #334155;display:flex;align-items:center;gap:12px}
   header h1{font-size:16px;margin:0;font-weight:600}
   header .badge{font-size:12px;color:var(--muted)}
+  .ai-notice{padding:8px 20px;background:#1d2b1f;border-bottom:1px solid #334155;color:#bbf7d0;font-size:12.5px;line-height:1.45}
   /* Folder bar */
   .folderbar{padding:12px 20px;background:#162032;border-bottom:1px solid #334155;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
   .folderbar input{flex:1;min-width:220px;padding:8px 10px;background:#0b1220;border:1px solid #334155;border-radius:8px;color:var(--txt)}
@@ -51,6 +52,9 @@
     <h1>📊 Report Generate Agent</h1>
     <span class="badge" id="modeBadge"></span>
   </header>
+
+  <div class="ai-notice">🤖 Bạn đang tương tác với một <b>tác nhân AI</b> (AI agent). Báo cáo và phân tích
+    được tạo tự động bởi AI từ dữ liệu bạn cung cấp — vui lòng rà soát trước khi sử dụng.</div>
 
   <div class="folderbar">
     <button class="sec" onclick="pickFolder()">📁 Chọn folder…</button>

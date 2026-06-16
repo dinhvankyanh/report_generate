@@ -65,11 +65,17 @@ def _prereqs():
 def _list_outputs():
     """List generated output files (relative paths) for download links."""
     out = []
-    for d in (config.REPORT_DIR, config.TOP_PRIORITIES_DIR, config.OVERALL_PROGRESS_DIR):
+    # Report .docx + Initiatives tracker (incl. the generated month-X file)
+    for d in (config.REPORT_DIR, config.INITIATIVES_TRACKER_DIR):
         if d and d.exists():
             for p in sorted(d.glob("*")):
-                if p.is_file():
+                if p.is_file() and not p.name.startswith("~$"):
                     out.append(str(p.relative_to(config.DATA_DIR).as_posix()))
+    # Calc workbooks at the data-folder root
+    for fname in ("Performance analysis.xlsx", "Forecast.xlsx"):
+        p = config.DATA_DIR / fname
+        if p.exists():
+            out.append(fname)
     return out
 
 

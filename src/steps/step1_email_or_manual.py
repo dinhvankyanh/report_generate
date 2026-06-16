@@ -53,6 +53,28 @@ def _clean_str(v) -> str:
     return "" if s.lower() == "nan" else s
 
 
+def _norm_timing_key(s) -> str:
+    """Canonical key for a timing string: 'May-26'->'m5-26', 'Q4/2026'->'q4-26'."""
+    import re
+    from ..llm.extractor import _parse_month
+    s = str(s or "").strip().lower()
+    if not s or s == "nan":
+        return ""
+    p = _parse_month(s)
+    if p and p[1]:
+        return f"m{p[0]}-{p[1] % 100}"
+    m = re.search(r'q([1-4])\D*(\d{2,4})', s)
+    if m:
+        return f"q{m.group(1)}-{int(m.group(2)) % 100}"
+    return re.sub(r'[^a-z0-9]', '', s)
+
+
+def _same_timing(a, b) -> bool:
+    """True if two timing strings denote the same month/quarter."""
+    ka, kb = _norm_timing_key(a), _norm_timing_key(b)
+    return bool(ka) and ka == kb
+
+
 class Step1GetInitiativesData(BaseStep):
     """Step 1: Build month X tracker from month X-1 skeleton + LLM email updates."""
 
@@ -76,6 +98,8 @@ class Step1GetInitiativesData(BaseStep):
         #    (so a missing exact month falls back to the latest earlier file)
         raw, header_idx, _sheet = manual.get_initiatives_raw(prev_month, prev_year)
         prev_df = manual.get_initiatives_data(prev_month, prev_year)
+        # The X-1 file is also the formatting template (cloned by tracker_writer).
+        template_path = manual._find_initiatives_file(prev_month, prev_year)
 
         if raw is None or header_idx is None or prev_df is None or prev_df.empty:
             return StepResult(
@@ -113,7 +137,26 @@ class Step1GetInitiativesData(BaseStep):
         else:
             report_label = f"{config.get_month_name(month)} {year}"
             updates = extract_initiative_updates(initiatives, emails, report_label)
+            # The LLM endpoint is not 100% reliable (timeouts under load); a transient
+            # failure returns [] and would silently carry the whole month forward.
+            # Retry a couple of times before giving up.
+            attempt = 0
+            while not updates and attempt < 2:
+                attempt += 1
+                self.log(f"LLM returned 0 updates despite {len(emails)} emails — "
+                         f"retry {attempt}/2...", "warn")
+                updates = extract_initiative_updates(initiatives, emails, report_label)
         self.log(f"LLM returned {len(updates)} update(s)")
+
+        # Guard: emails existed but nothing was extracted -> the tracker would be
+        # a plain carry-forward of X-1 (NOT email-updated). Flag loudly so it is
+        # never mistaken for a valid, up-to-date tracker (Step 8 also reports it).
+        if emails and not updates:
+            self.log("!" * 56, "warn")
+            self.log("EXTRACTION RETURNED NOTHING — tracker will be a plain CARRY-FORWARD "
+                     "of the previous month, NOT email-updated. Check the LLM endpoint/key.", "warn")
+            self.log("!" * 56, "warn")
+            context["extraction_empty"] = True
 
         # 5. Apply updates by initiative No
         updates_by_no = {u["no"]: u for u in updates if u.get("no") is not None}
@@ -140,6 +183,18 @@ class Step1GetInitiativesData(BaseStep):
 
         self.log(f"Applied email updates to {matched} initiative(s)", "success")
 
+        # "New timing (if applicable)" must be blank when the timing did NOT change
+        # from the planned Timing — otherwise unchanged items show a spurious revision.
+        for idx, row in current.iterrows():
+            no = _as_int(row.get(COL_NO))
+            name = _clean_str(row.get(COL_NAME))
+            if no is None or not name or name.lower() in SECTION_NAMES:
+                continue
+            nt = _clean_str(row.get(COL_NEW_TIMING))
+            planned = _clean_str(row.get(COL_TIMING))
+            if nt and planned and _same_timing(nt, planned):
+                current.at[idx, COL_NEW_TIMING] = ""
+
         # Collect metric claims from email (Rule 3: reconcile vs actuals later)
         name_by_no = {_as_int(r.get(COL_NO)): _clean_str(r.get(COL_NAME))
                       for _, r in current.iterrows() if _as_int(r.get(COL_NO)) is not None}
@@ -161,11 +216,13 @@ class Step1GetInitiativesData(BaseStep):
         context["initiatives_data"] = current
         context["tracker_raw"] = raw
         context["tracker_header_idx"] = header_idx
+        context["tracker_template_path"] = str(template_path) if template_path else None
 
         # 7. Write the month X tracker preserving the template
         try:
             from .tracker_writer import write_tracker
-            out_path = write_tracker(raw, header_idx, current, month, year)
+            out_path = write_tracker(raw, header_idx, current, month, year,
+                                     template_path=context.get("tracker_template_path"))
             self.log(f"Saved tracker: {out_path.name}", "success")
         except Exception as e:
             self.log(f"Could not write tracker file: {e}", "warn")
