@@ -44,6 +44,36 @@ def _client():
     )
 
 
+def _chat_json(messages, max_tokens=8000) -> str:
+    """One LLM call returning raw text; tolerant of endpoints rejecting extra_body."""
+    client = _client()
+    try:
+        resp = client.chat.completions.create(
+            model=config.LLM_CONFIG["model"], messages=messages,
+            temperature=0, seed=7, max_tokens=max_tokens,
+            extra_body={"chat_template_kwargs": {"enable_thinking": False}})
+    except Exception:
+        resp = client.chat.completions.create(
+            model=config.LLM_CONFIG["model"], messages=messages,
+            temperature=0, max_tokens=max_tokens)
+    return resp.choices[0].message.content or ""
+
+
+def _json_obj(content: str):
+    """Parse a JSON object from model output (strip <think>, salvage first {...})."""
+    content = re.sub(r"<think>.*?</think>", "", content or "", flags=re.DOTALL).strip()
+    try:
+        return json.loads(content)
+    except Exception:
+        m = re.search(r"\{.*\}", content, re.DOTALL)
+        if m:
+            try:
+                return json.loads(m.group(0))
+            except Exception:
+                return None
+    return None
+
+
 def normalize_subject(subject: str) -> str:
     """
     Strip reply/forward prefixes AND a trailing parenthetical annotation so
@@ -143,7 +173,8 @@ def group_threads(emails: List[dict]) -> List[dict]:
     return list(threads.values())
 
 
-def _build_prompt(initiatives: List[dict], threads: List[dict], report_label: str) -> str:
+def _build_prompt(initiatives: List[dict], threads: List[dict], report_label: str,
+                  email_by_no: dict = None) -> str:
     init_lines = []
     for it in initiatives:
         init_lines.append(
@@ -165,25 +196,40 @@ def _build_prompt(initiatives: List[dict], threads: List[dict], report_label: st
         key=lambda t: (_latest(t) is not None, _latest(t)),
         reverse=True) if all(_latest(t) for t in threads) else threads
 
-    thread_blocks = []
-    for t in threads_sorted:
-        msgs = []
-        for m in t["messages"]:
-            body = m["body"]
-            if len(body) > 1500:
-                body = body[:1500] + " ...[truncated]"
-            msgs.append(f"  [{m['date']}] from {m['sender']}:\n  {body}")
-        latest = _latest(t)
-        hdr = f"### Thread: {t['subject']}  (latest msg: {latest})"
-        thread_blocks.append(hdr + "\n" + "\n".join(msgs))
+    def _msg_line(m):
+        body = m["body"]
+        if len(body) > 1500:
+            body = body[:1500] + " ...[truncated]"
+        return f"  [{m['date']}] {body}"
+
+    if email_by_no:
+        # Messages already grouped per initiative (merged across threads, oldest->newest)
+        blocks = []
+        for it in initiatives:
+            msgs = email_by_no.get(it["no"])
+            if not msgs:
+                continue
+            blocks.append(f"#### Initiative #{it['no']} — {it['name']} ####\n"
+                          + "\n".join(_msg_line(m) for m in msgs))
+        email_section = (
+            "EMAIL UPDATES PER INITIATIVE (Vietnamese; messages oldest->newest, may be "
+            "merged from several threads — the LAST line is the current state):\n"
+            + ("\n\n".join(blocks) if blocks else "(no email updates)"))
+    else:
+        thread_blocks = []
+        for t in threads_sorted:
+            hdr = f"### Thread: {t['subject']}  (latest msg: {_latest(t)})"
+            thread_blocks.append(hdr + "\n" + "\n".join(_msg_line(m) for m in t["messages"]))
+        email_section = (
+            "EMAIL THREADS (Vietnamese; newest thread first; within a thread oldest->newest):\n"
+            + "\n".join(thread_blocks))
 
     return f"""You are updating a monthly Initiatives Tracker for {report_label}.
 
 INITIATIVES (each carries last month's status / new timing / details as context):
 {chr(10).join(init_lines)}
 
-EMAIL THREADS (Vietnamese; sorted newest thread first; within a thread, messages are oldest->newest):
-{chr(10).join(thread_blocks)}
+{email_section}
 
 How to read the emails:
 - A thread (and even a single message) may discuss MORE THAN ONE initiative.
@@ -252,8 +298,63 @@ Field rules:
   "approval rate ~65%"); do NOT include promises/uplifts like "+10pp". Empty list if none.
 - Never invent facts not supported by the email thread or last month's row.
 
+BEFORE RETURNING — completeness sweep (do NOT omit these): scan EVERY initiative,
+including ones with NO email. Any initiative whose planned timing (or previous new
+timing) month is EARLIER than {report_label}, and whose previous status/details show
+it was ready-to-pilot / deployed / launched / done, MUST be returned as "Live"
+(keep its timing). Example: #1 "Add 1 partner" planned May-26, prev "ready to pilot
+mid-May", report month June -> MUST output #1 as "Live", new_timing "May-26".
+
 Return ONLY valid JSON, no prose:
 {{"updates": [{{"no": <int>, "status": "", "new_timing": "", "timing_start": "", "timing_months": 0, "details": "", "confidence": "", "pic": "", "metric_claims": []}}]}}"""
+
+
+def _map_threads_to_initiatives(initiatives: List[dict], threads: List[dict]) -> dict:
+    """
+    Pass 1: ask the LLM which initiative No(s) each thread concerns. Returns
+    {thread_index: [no, ...]}. Lets differently-titled threads about the same
+    initiative be merged in code (recency then handled per-initiative).
+    """
+    init_lines = [f"No {it['no']}: {it['name']} | planned {it.get('timing','') or '?'}"
+                  f" | {it.get('pic','') or ''}" for it in initiatives]
+    th_lines = []
+    for i, t in enumerate(threads):
+        last = t["messages"][-1]["body"][:280] if t["messages"] else ""
+        th_lines.append(f"[{i}] {t['subject']}\n    latest: {last}")
+    prompt = f"""Assign each email thread to the initiative number(s) it concerns.
+INITIATIVES:
+{chr(10).join(init_lines)}
+THREADS:
+{chr(10).join(th_lines)}
+Rules:
+- A thread may concern MULTIPLE initiatives (e.g. a model thread that also sets a
+  dependent initiative's start/launch date) -> list all relevant No.
+- DIFFERENT-titled threads can concern the SAME initiative (e.g. "Partner 2 -
+  onboarding" and "Onboard Partner A" are the same partner) -> give the same No.
+- Disambiguate same-named initiatives by planned timing / persona / partner.
+- A thread matching no initiative -> [].
+Return ONLY JSON: {{"map":[{{"thread":<int>,"nos":[<int>...]}}]}}
+/no_think"""
+    try:
+        data = _json_obj(_chat_json(
+            [{"role": "system", "content": "Return strict JSON only."},
+             {"role": "user", "content": prompt}], max_tokens=3000))
+        out = {}
+        for row in (data or {}).get("map", []):
+            i = row.get("thread")
+            if not isinstance(i, int):
+                continue
+            nos = []
+            for x in (row.get("nos") or []):
+                try:
+                    nos.append(int(x))
+                except (TypeError, ValueError):
+                    pass
+            out[i] = nos
+        return out
+    except Exception as e:
+        print(f"[WARNING] thread->initiative mapping failed: {e}")
+        return {}
 
 
 def extract_initiative_updates(initiatives: List[dict], emails: List[dict],
@@ -271,36 +372,43 @@ def extract_initiative_updates(initiatives: List[dict], emails: List[dict],
     if not threads:
         return []
 
-    # "/no_think" disables qwen3's chain-of-thought (otherwise it generates long
-    # reasoning and the request times out on big prompts).
-    prompt = _build_prompt(initiatives, threads, report_label) + "\n\n/no_think"
-
-    messages = [
-        {"role": "system", "content": "You extract structured data and return strict JSON only. Do not think out loud."},
-        {"role": "user", "content": prompt},
-    ]
-
+    # Pass 1: map threads -> initiative No(s), then MERGE only the threads that
+    # concern exactly ONE (same) initiative — e.g. "Partner 2 — onboarding" and
+    # "Onboard Partner A" both -> #2 are merged chronologically so the latest wins.
+    # Threads that concern several initiatives (e.g. a modelling thread that also
+    # mentions personalization) are LEFT AS-IS to avoid cross-contaminating them.
     try:
-        client = _client()
-        try:
-            # Prefer the server-side thinking toggle (qwen3 via vLLM/SGLang)
-            resp = client.chat.completions.create(
-                model=config.LLM_CONFIG["model"],
-                messages=messages,
-                temperature=0,
-                seed=7,
-                max_tokens=2000,
-                extra_body={"chat_template_kwargs": {"enable_thinking": False}},
-            )
-        except Exception:
-            # Endpoint may reject extra_body — retry once without it
-            resp = client.chat.completions.create(
-                model=config.LLM_CONFIG["model"],
-                messages=messages,
-                temperature=0,
-                max_tokens=2000,
-            )
-        content = resp.choices[0].message.content or ""
+        mapping = _map_threads_to_initiatives(initiatives, threads)
+        if mapping:
+            from collections import defaultdict
+            single = defaultdict(list)
+            kept = []
+            for i, t in enumerate(threads):
+                nos = mapping.get(i, [])
+                if len(nos) == 1:
+                    single[nos[0]].append(t)
+                else:
+                    kept.append(t)
+            for no, ts in single.items():
+                if len(ts) == 1:
+                    kept.append(ts[0])
+                    continue
+                msgs, subs = [], []
+                for t in ts:
+                    msgs.extend(t["messages"]); subs.append(t["subject"])
+                if msgs and all(_date_key(m["date"]) for m in msgs):
+                    msgs.sort(key=lambda m: _date_key(m["date"]))
+                kept.append({"subject": " / ".join(subs), "messages": msgs[-6:]})
+            threads = kept
+    except Exception as e:
+        print(f"[WARNING] thread merge failed, using raw threads: {e}")
+
+    # Pass 2: write the structured update. "/no_think" keeps reasoning models terse.
+    prompt = _build_prompt(initiatives, threads, report_label) + "\n\n/no_think"
+    try:
+        content = _chat_json(
+            [{"role": "system", "content": "You extract structured data and return strict JSON only. Do not think out loud."},
+             {"role": "user", "content": prompt}], max_tokens=8000)
     except Exception as e:
         print(f"[WARNING] LLM extraction failed: {e}")
         return []

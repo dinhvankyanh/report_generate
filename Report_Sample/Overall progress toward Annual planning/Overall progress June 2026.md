@@ -9,8 +9,8 @@ Generated: 2026-06-16
 
 | No | Initiative | Status | Comments |
 |----|------------|--------|----------|
-| 1 | Add 1 partner with higher risk appetite | On Track | [OK] On Track |
-| 2 | Add 1 partner with higher risk appetite | Delay | [WARNING] Delayed - Partner yêu cầu bắt buộc risk-based pricing API, cần thêm 6-8 tuần dev và UAT, timeline khả thi nhất |
+| 1 | Add 1 partner with higher risk appetite | Live | [OK] Live |
+| 2 | Add 1 partner with higher risk appetite | Delay | [WARNING] Delayed - Đối tác đồng ý triển khai theo giai đoạn, nhưng cần thêm 2 tuần so với kế hoạch ban đầu (31/8), dự k |
 | 3 | New modelling allows scoring new segments | On Track | [OK] On Track |
 | 4 | Add new product that unlock new demand | Live | [OK] Live |
 
@@ -20,12 +20,12 @@ Generated: 2026-06-16
 |----|------------|--------|----------|
 | 5 | New score model version allows incremental more Eligible in existing segment & increasing Approval Rate | Live | [OK] Live |
 | 6 | Discover new traffic channel #1 | Live | [OK] Live |
-| 7 | Discover new traffic channel #2 | Deprioritized | ? Deprioritized - Do team Cashier full load và performance test chưa ổn định, hai bên đồng ý deprioritize và sẽ quay l |
+| 7 | Discover new traffic channel #2 | Deprioritized | ? Deprioritized - Do team Cashier không có nguồn lực và vấn đề hiệu năng, initiative này đã được đồng ý deprioritize v |
 | 8 | Revamp layout of Landing Page | Live | [OK] Live |
 | 9 | Make product offerings more diverse | Live | [OK] Live |
-| 10 | Personalize offerings per users using big data | Delay | [WARNING] Delayed - Do team DS ưu tiên init optimize model, init này chưa thể scoping ngay, dự kiến kick off cuối tháng  |
-| 11 | New redirecting tactics for dropped customers | Deprioritized | ? Deprioritized - Low expected impact (+0.5pp); deprioritized vs higher-impact channel work; may revisit Q4. |
-| 12 | Running year-end campaign | Not started | [INFO] Vẫn chưa có cập nhật mới, kế hoạch bắt đầu Q3 với creative và budget chưa chốt. |
+| 10 | Personalize offerings per users using big data | Delay | [WARNING] Delayed - Do team DS ưu tiên tối ưu mô hình dữ liệu, việc scoping bị trì hoãn; dự kiến cần 2 tháng để hoàn thi |
+| 11 | New redirecting tactics for dropped customers | Deprioritized | ? Deprioritized - Đã được deprioritize do tác động thấp, có thể xem xét lại vào Q4. |
+| 12 | Running year-end campaign | Not started | [INFO] Chưa bắt đầu, đang trong giai đoạn lập kế hoạch cho Q3 với ngân sách và sáng tạo chưa chốt. |
 
 ---
 

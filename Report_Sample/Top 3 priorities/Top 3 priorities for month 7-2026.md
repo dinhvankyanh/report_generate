@@ -20,13 +20,13 @@ Generated: 2026-06-16
 - **Expected Impact**: %Eligible/Total User Base +10pp
 - **Impact Score**: 10.0
 
-## 3. Add 1 partner with higher risk appetite
+## 3. Running year-end campaign
 
-- **Status**: On Track
-- **PIC**: Persona 1
-- **Timing**: May-26
-- **Expected Impact**: %Eligible/Total User Base +10pp
-- **Impact Score**: 10.0
+- **Status**: Not started
+- **PIC**: Persona 3
+- **Timing**: Q4/2026
+- **Expected Impact**: %Traffic/Eligible +5pp
+- **Impact Score**: 5.0
 
 ---
 
