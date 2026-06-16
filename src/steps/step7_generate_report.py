@@ -227,6 +227,14 @@ class Step7GenerateReport(BaseStep):
             if ytd["disb_ytd_actual"] is not None:
                 para(f"YTD Disbursement is {ytd['disb_ytd_actual']:,} VNDm vs "
                      f"{ytd['disb_ytd_plan']:,} plan; FY plan {ytd['fy_plan']:,} VNDm.")
+        # Escalations — deterministic (guaranteed), highest impact first.
+        esc = data.get("escalations") or []
+        if esc:
+            subhead("Escalations — high-impact initiatives delayed / deprioritized")
+            table(["Initiative", "Owner", "Status", "Impact", "New timing", "Note"],
+                  [[e["name"], e["pic"], e["status"], e["expected_impact"],
+                    (e["new_timing"] or "-"), e["details"]] for e in esc])
+
         subhead("Risks, dependencies & escalations")
         bullets(nar.get("risks"))
 

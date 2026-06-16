@@ -90,6 +90,12 @@ def _signed(v, suffix):
     return f"{n:+d}{suffix}"
 
 
+def _impact_score(impact_str: str) -> float:
+    """Largest +Xpp / +X% magnitude in an expected-impact string (0 if none)."""
+    nums = re.findall(r'\+?(\d+(?:\.\d+)?)\s*(?:pp|%)', str(impact_str))
+    return max((float(n) for n in nums), default=0.0)
+
+
 def _fmt_mom(prev, cur, unit):
     """MoM as pp for % metrics, % for volume metrics."""
     if is_pct(unit):
@@ -157,6 +163,13 @@ def build_report_data(context, month, year, data_source):
     # --- Initiatives by section ---
     structural, incremental = _split_initiatives(context.get("initiatives_data"))
 
+    # --- Escalations: delayed / deprioritized initiatives, highest impact first ---
+    escalations = []
+    for it in structural + incremental:
+        if it["status"].strip().lower() in ("delay", "deprioritized"):
+            escalations.append({**it, "impact": _impact_score(it["expected_impact"])})
+    escalations.sort(key=lambda x: x["impact"], reverse=True)
+
     # --- Forecast key numbers ---
     forecast = context.get("forecast")
     disb_cur = disb_next = None
@@ -192,6 +205,7 @@ def build_report_data(context, month, year, data_source):
         "funnel": funnel,
         "structural": structural,
         "incremental": incremental,
+        "escalations": escalations,
         "forecast": {
             "disb_cur": round(disb_cur) if disb_cur is not None else None,
             "disb_next": round(disb_next) if disb_next is not None else None,
