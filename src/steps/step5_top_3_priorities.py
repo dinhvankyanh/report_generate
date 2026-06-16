@@ -55,11 +55,15 @@ class Step5TopPriorities(BaseStep):
                 continue
 
             impact = self._parse_impact_score(row.get("Expected impact", ""))
+            # Rule 16: priorities are HIGH-impact initiatives that are delayed /
+            # at-risk (need attention), not on-track ones coasting along.
+            at_risk = 1 if status.lower() in {"delay", "not started"} else 0
             initiatives_with_impact.append({
                 "name": name,
                 "timing": row.get("Timing", ""),
                 "status": status,
                 "impact": impact,
+                "at_risk": at_risk,
                 "pic": row.get("PIC", ""),
                 "expected_impact": row.get("Expected impact", "")
             })
@@ -67,11 +71,9 @@ class Step5TopPriorities(BaseStep):
         # Convert to DataFrame for easier sorting
         df = pd.DataFrame(initiatives_with_impact)
 
-        # Score: Impact * 10 + (12 - months_until) to prioritize higher impact + closer timeline
-        df["score"] = df["impact"] * 10
-
-        # Sort by impact (desc), then by timing (asc)
-        df = df.sort_values(by=["impact", "timing"], ascending=[False, True])
+        # Rank: at-risk first (Rule 16), then higher impact, then nearer timeline.
+        df = df.sort_values(by=["at_risk", "impact", "timing"],
+                            ascending=[False, False, True])
 
         # Take top 3
         top_3 = df.head(3)

@@ -312,6 +312,24 @@ INCREMENTAL initiatives (traffic / submission / ticket):
 FORECAST (Disbursement VNDm): current {meta['report_month']} = {fc['disb_cur']}; {meta['next_month']} run-rate = {fc['disb_next']}; {meta['next_month']} plan = {fc['plan_next']}.
 YTD Disbursement (VNDm): actual = {ytd['disb_ytd_actual']}, plan = {ytd['disb_ytd_plan']}; FY plan = {ytd['fy_plan']}.
 
+QUALITY RULES (mandatory — a confident wrong number is fatal):
+- NEVER invent a number. Use ONLY figures given above. If a figure you need is
+  not provided, write "[number needed]" — never a plausible guess.
+- Every number states its comparator (vs plan / vs last month / vs target).
+- "Shipped" != "worked": state an initiative's status and the metric movement as
+  SEPARATE facts. Do not claim a metric moved because an initiative shipped unless
+  the funnel numbers support it.
+- For each initiative with a promised impact, state EXPECTED vs REALIZED (include
+  "not yet realized" / "not yet measurable" / partial). Credit only the part the
+  numbers show.
+- Keep tentative things tentative; carry confidence (High/Medium/Low) from the data.
+- Separate fact vs inference; do not dress an inference as a confirmed fact.
+- Run-rate: state its basis (anchored on plan, adjusted for known slips). Do NOT
+  bake the impact of a DELAYED initiative into next month unless its new timing is
+  exactly {meta['next_month']}.
+- "risks": put every unconfirmed / to-verify item here, attributed to its owner.
+- Account for every initiative listed above; don't silently drop any.
+
 Write the report as JSON with EXACTLY these keys:
 {{
  "kpi_read": "1-3 sentence read of the funnel table",
