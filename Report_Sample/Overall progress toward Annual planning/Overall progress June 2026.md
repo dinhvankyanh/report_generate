@@ -10,7 +10,7 @@ Generated: 2026-06-16
 | No | Initiative | Status | Comments |
 |----|------------|--------|----------|
 | 1 | Add 1 partner with higher risk appetite | Live | [OK] Live |
-| 2 | Add 1 partner with higher risk appetite | Delay | [WARNING] Delayed - Đối tác yêu cầu support risk-based pricing API, delay thêm 6-8 tuần, dự kiến launch tháng 10. |
+| 2 | Add 1 partner with higher risk appetite | Delay | [WARNING] Delayed - Đối tác yêu cầu bắt buộc API risk-based pricing chưa nằm trong scope, dự kiến delay sang tháng 10. |
 | 3 | New modelling allows scoring new segments | On Track | [OK] On Track |
 | 4 | Add new product that unlock new demand | Live | [OK] Live |
 
@@ -20,10 +20,10 @@ Generated: 2026-06-16
 |----|------------|--------|----------|
 | 5 | New score model version allows incremental more Eligible in existing segment & increasing Approval Rate | Live | [OK] Live |
 | 6 | Discover new traffic channel #1 | Live | [OK] Live |
-| 7 | Discover new traffic channel #2 | Deprioritized | ? Deprioritized - Do resource Cashier full load, đồng ý deprioritize và back lại trong Q4. |
+| 7 | Discover new traffic channel #2 | Deprioritized | ? Deprioritized - Do team Cashier full load và performance test chưa ổn định, đã đồng ý deprioritize và reschedule san |
 | 8 | Revamp layout of Landing Page | Live | [OK] Live |
 | 9 | Make product offerings more diverse | Live | [OK] Live |
-| 10 | Personalize offerings per users using big data | Delay | [WARNING] Delayed - DS ưu tiên init khác, chưa có resource để scoping, timeline chưa confirm. |
+| 10 | Personalize offerings per users using big data | Delay | [WARNING] Delayed - Chưa thể bắt đầu scoping do team DS đang ưu tiên init optimize data model khác. |
 | 11 | New redirecting tactics for dropped customers | Deprioritized | ? Deprioritized - Low expected impact (+0.5pp); deprioritized vs higher-impact channel work; may revisit Q4. |
 | 12 | Running year-end campaign | Not started | [INFO] Planning to begin Q3; creative & budget not yet locked. |
 

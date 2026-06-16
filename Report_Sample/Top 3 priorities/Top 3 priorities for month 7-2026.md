@@ -7,7 +7,7 @@ Generated: 2026-06-16
 ## 1. New modelling allows scoring new segments
 
 - **Status**: On Track
-- **PIC**: Thư Trần
+- **PIC**: Persona 2
 - **Timing**: Sep-26
 - **Expected Impact**: %Eligible/Total User Base +15pp
 - **Impact Score**: 15.0
@@ -15,7 +15,7 @@ Generated: 2026-06-16
 ## 2. Add 1 partner with higher risk appetite
 
 - **Status**: Delay
-- **PIC**: Thư. Trần Thị (2)
+- **PIC**: Persona 1
 - **Timing**: Aug-26
 - **Expected Impact**: %Eligible/Total User Base +10pp
 - **Impact Score**: 10.0
