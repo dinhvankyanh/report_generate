@@ -50,13 +50,16 @@ class Step7GenerateReport(BaseStep):
         try:
             self._render(out, data, narrative, month, year)
         except PermissionError:
+            # Reuse/overwrite the first writable "(n)" alternate
             for n in range(1, 100):
                 alt = config.REPORT_DIR / f"Report thang {month} nam {year} ({n}).docx"
-                if not alt.exists():
+                try:
+                    self._render(alt, data, narrative, month, year)
+                    self.log(f"{out.name} đang mở/khoá; ghi {alt.name}", "warn")
+                    out = alt
                     break
-            self.log(f"{out.name} đang mở/khoá; ghi {alt.name}", "warn")
-            self._render(alt, data, narrative, month, year)
-            out = alt
+                except PermissionError:
+                    continue
 
         context["report_path"] = str(out)
         context["pdf_path"] = str(out)  # backward-compat for callers

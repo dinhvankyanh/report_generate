@@ -42,13 +42,19 @@ def _client():
 
 
 def normalize_subject(subject: str) -> str:
-    """Strip reply/forward prefixes so emails in a thread group together."""
+    """
+    Strip reply/forward prefixes AND a trailing parenthetical annotation so
+    near-duplicate subjects about the same initiative merge into one thread
+    (e.g. "... new segments" and "... new segments (Sep-26)" -> same thread,
+    so the latest message wins regardless of which subject it used).
+    """
     s = subject or ""
     while True:
         s2 = re.sub(r"^\s*(re|fwd|fw)\s*:\s*", "", s, flags=re.IGNORECASE)
         if s2 == s:
             break
         s = s2
+    s = re.sub(r"\s*\([^)]*\)\s*$", "", s)  # drop trailing "(...)"
     return s.strip()
 
 
@@ -122,11 +128,15 @@ def group_threads(emails: List[dict]) -> List[dict]:
             "sender": em.get("sender", ""),
             "body": body,
         })
-    # Sort each thread chronologically so the LAST message is the most recent
+    # Sort each thread chronologically so the LAST message is the most recent,
+    # then keep only the newest few messages. Emails quote prior content inline
+    # (no '>' prefix), so older messages repeat stale facts and confuse "latest
+    # wins"; the conclusion lives in the last message(s).
     for t in threads.values():
         dated = [m for m in t["messages"] if _date_key(m["date"]) is not None]
         if len(dated) == len(t["messages"]):
             t["messages"].sort(key=lambda m: _date_key(m["date"]))
+        t["messages"] = t["messages"][-4:]
     return list(threads.values())
 
 
@@ -141,28 +151,62 @@ def _build_prompt(initiatives: List[dict], threads: List[dict], report_label: st
             f"| previous details: {it.get('prev_details','') or '(none)'}"
         )
 
+    # Sort threads newest-first (by latest message) so recency is explicit;
+    # the model must prefer the most recent statement about any initiative.
+    def _latest(t):
+        ds = [d for d in (_date_key(m["date"]) for m in t["messages"]) if d is not None]
+        return max(ds) if ds else None
+
+    threads_sorted = sorted(
+        threads,
+        key=lambda t: (_latest(t) is not None, _latest(t)),
+        reverse=True) if all(_latest(t) for t in threads) else threads
+
     thread_blocks = []
-    for t in threads:
+    for t in threads_sorted:
         msgs = []
         for m in t["messages"]:
             body = m["body"]
             if len(body) > 1500:
                 body = body[:1500] + " ...[truncated]"
             msgs.append(f"  [{m['date']}] from {m['sender']}:\n  {body}")
-        thread_blocks.append("### Thread: " + t["subject"] + "\n" + "\n".join(msgs))
+        latest = _latest(t)
+        hdr = f"### Thread: {t['subject']}  (latest msg: {latest})"
+        thread_blocks.append(hdr + "\n" + "\n".join(msgs))
 
     return f"""You are updating a monthly Initiatives Tracker for {report_label}.
 
 INITIATIVES (each carries last month's status / new timing / details as context):
 {chr(10).join(init_lines)}
 
-EMAIL THREADS (Vietnamese; messages are in chronological order, oldest first — the LAST message in each thread reflects the agreed current state, earlier ones are context):
+EMAIL THREADS (Vietnamese; sorted newest thread first; within a thread, messages are oldest->newest):
 {chr(10).join(thread_blocks)}
 
+How to read the emails:
+- A thread (and even a single message) may discuss MORE THAN ONE initiative.
+  Apply each fact to the initiative it concerns. Example: a "new modelling" thread
+  that also sets the start/launch date of the dependent "personalization" initiative
+  updates BOTH initiatives.
+- RECENCY WINS: when the same initiative is mentioned in several threads/messages,
+  the statement with the LATEST date is authoritative — override older ones.
+  (e.g. an older thread saying "Gini ~0.2, below expectation" is superseded by a
+  newer one saying "Gini up to 0.3, near the expected threshold".)
+- RELATIVE TIMING — do NOT do the month math yourself. If the timing is expressed
+  as "kick off in <month> and take <N> months", just EXTRACT the parts: set
+  "timing_start" to that kickoff month as "Mon-YY" (e.g. "cuối tháng 6" -> "Jun-26")
+  and "timing_months" to N (e.g. "2 tháng" -> 2). The system computes new_timing.
+  Use each initiative's OWN kickoff/duration — never a month mentioned for a
+  different initiative. If the timing is already an absolute month, put it in
+  "new_timing" and leave timing_start empty.
+
 Produce an update for an initiative when EITHER of these is true:
- (A) it has a relevant email thread this month — match a thread to ONE initiative by topic, partner name, impact metric, or initiative name; read the thread's conclusion; OR
- (B) it has NO email this month, BUT last month's row already shows it was completing: previous details say it was deployed / went live / launched / done, OR its previous new timing month is now in the past relative to {report_label}. In that case roll the status to "Live" (or "Done"), and KEEP the previous new timing as the new_timing. You MUST check every no-email initiative against rule B — do not skip them.
-If neither applies, OMIT the initiative (it will carry forward unchanged).
+ (A) some email (in any thread) gives news about it — read the LATEST relevant statement; OR
+ (B) it has NO email this month, BUT last month's row already shows it was completing:
+   previous details say it was deployed / went live / launched / done, OR its previous
+   new timing month is now in the past relative to {report_label}. In that case roll the
+   status to "Live" (or "Done"), and KEEP the previous new timing. Check every no-email
+   initiative against rule B.
+If neither applies, OMIT the initiative (it carries forward unchanged).
 
 Example of rule (B): previous status "Delay", previous new timing "May-26", previous details "Model deployed May" and the report month is June -> output status "Live", new_timing "May-26".
 
@@ -186,7 +230,7 @@ Field rules:
 - Never invent facts not supported by the email thread or last month's row.
 
 Return ONLY valid JSON, no prose:
-{{"updates": [{{"no": <int>, "status": "", "new_timing": "", "details": "", "confidence": "", "pic": "", "metric_claims": []}}]}}"""
+{{"updates": [{{"no": <int>, "status": "", "new_timing": "", "timing_start": "", "timing_months": 0, "details": "", "confidence": "", "pic": "", "metric_claims": []}}]}}"""
 
 
 def extract_initiative_updates(initiatives: List[dict], emails: List[dict],
@@ -221,6 +265,7 @@ def extract_initiative_updates(initiatives: List[dict], emails: List[dict],
                 model=config.LLM_CONFIG["model"],
                 messages=messages,
                 temperature=0,
+                seed=7,
                 max_tokens=2000,
                 extra_body={"chat_template_kwargs": {"enable_thinking": False}},
             )
@@ -272,16 +317,55 @@ def _parse_updates(content: str) -> List[dict]:
             conf = ""
         claims = u.get("metric_claims") or []
         claims = [c for c in claims if isinstance(c, dict) and c.get("metric") and c.get("level")]
+        # Deterministic relative-timing: compute kickoff month + duration in code
+        new_timing = (u.get("new_timing") or "").strip()
+        ts = (u.get("timing_start") or "").strip()
+        try:
+            tm = int(u.get("timing_months") or 0)
+        except (TypeError, ValueError):
+            tm = 0
+        if ts and tm > 0:
+            computed = _add_months(ts, tm)
+            if computed:
+                new_timing = computed
         updates.append({
             "no": no,
             "status": status,
-            "new_timing": (u.get("new_timing") or "").strip(),
+            "new_timing": new_timing,
             "details": (u.get("details") or "").strip(),
             "confidence": conf,
             "pic": (u.get("pic") or "").strip(),
             "metric_claims": claims,
         })
     return updates
+
+
+_MON_NUM = {"jan": 1, "feb": 2, "mar": 3, "apr": 4, "may": 5, "jun": 6,
+            "jul": 7, "aug": 8, "sep": 9, "oct": 10, "nov": 11, "dec": 12}
+_MON_ABBR = {v: k.capitalize() for k, v in _MON_NUM.items()}
+
+
+def _parse_month(s):
+    """Parse 'Jun-26' / 'June 2026' / 'tháng 6 2026' -> (month, year) or None."""
+    s = str(s).lower()
+    m = re.search(r'(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*[-\s/]*(\d{2,4})?', s)
+    if not m:
+        return None
+    mon = _MON_NUM[m.group(1)]
+    yr = m.group(2)
+    yr = (2000 + int(yr) if int(yr) < 100 else int(yr)) if yr else None
+    return mon, yr
+
+
+def _add_months(start_str, n: int):
+    """'Jun-26' + 2 -> 'Aug-26' (deterministic; LLM month math is unreliable)."""
+    p = _parse_month(start_str)
+    if not p or p[1] is None:
+        return None
+    mon, yr = p
+    total = (mon - 1) + int(n)
+    ny, nm = yr + total // 12, total % 12 + 1
+    return f"{_MON_ABBR[nm]}-{str(ny)[-2:]}"
 
 
 def _coerce_status(s: str) -> str:

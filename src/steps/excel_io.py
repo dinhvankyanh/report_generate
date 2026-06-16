@@ -23,9 +23,12 @@ def save_sheet(df: pd.DataFrame, file_path, sheet_name: str):
         _write(file_path)
         return file_path
     except PermissionError:
+        # Reuse/overwrite the first writable "(n)" alternate (avoid spawning many)
         for n in range(1, 100):
             alt = file_path.with_name(f"{file_path.stem} ({n}){file_path.suffix}")
-            if not alt.exists():
+            try:
                 _write(alt)
                 return alt
+            except PermissionError:
+                continue
         raise

@@ -55,10 +55,13 @@ def write_tracker(raw: pd.DataFrame, header_idx: int,
     try:
         wb.save(out_path)
     except PermissionError:
+        # Reuse/overwrite the first writable "(n)" alternate (avoid spawning many)
         for n in range(1, 100):
             alt = out_path.with_name(f"{out_path.stem} ({n}){out_path.suffix}")
-            if not alt.exists():
+            try:
                 wb.save(alt)
                 return alt
+            except PermissionError:
+                continue
         raise
     return out_path
