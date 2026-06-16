@@ -499,11 +499,10 @@ class Step4Forecast(BaseStep):
         df_to_save = self._build_display_df(forecast_df)
 
         try:
-            with pd.ExcelWriter(forecast_file, mode='a', if_sheet_exists='replace') as writer:
-                df_to_save.to_excel(writer, sheet_name=sheet_name, index=False, na_rep='')
-        except FileNotFoundError:
-            with pd.ExcelWriter(forecast_file, mode='w') as writer:
-                df_to_save.to_excel(writer, sheet_name=sheet_name, index=False, na_rep='')
+            from .excel_io import save_sheet
+            out = save_sheet(df_to_save, forecast_file, sheet_name)
+            if out != forecast_file:
+                self.log(f"{forecast_file.name} đang mở/khoá; ghi {out.name}", "warn")
         except Exception as e:
             self.log(f"Could not save forecast: {e}", "warn")
 

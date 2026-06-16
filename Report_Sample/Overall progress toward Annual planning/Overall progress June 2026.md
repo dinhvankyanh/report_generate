@@ -23,7 +23,7 @@ Generated: 2026-06-16
 | 7 | Discover new traffic channel #2 | Deprioritized | ? Deprioritized - Do team Cashier full load và performance test chưa ổn định, đã đồng ý deprioritize và reschedule san |
 | 8 | Revamp layout of Landing Page | Live | [OK] Live |
 | 9 | Make product offerings more diverse | Live | [OK] Live |
-| 10 | Personalize offerings per users using big data | Delay | [WARNING] Delayed - Chưa thể bắt đầu scoping do team DS đang ưu tiên init optimize data model khác. |
+| 10 | Personalize offerings per users using big data | Delay | [WARNING] Delayed - Không thể bắt đầu scoping do team DS đang ưu tiên init optimize model, timeline tháng 7 không khả th |
 | 11 | New redirecting tactics for dropped customers | Deprioritized | ? Deprioritized - Low expected impact (+0.5pp); deprioritized vs higher-impact channel work; may revisit Q4. |
 | 12 | Running year-end campaign | Not started | [INFO] Planning to begin Q3; creative & budget not yet locked. |
 

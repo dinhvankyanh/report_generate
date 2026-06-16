@@ -52,5 +52,13 @@ def write_tracker(raw: pd.DataFrame, header_idx: int,
             values.append(_clean(row[col_name]) if col_name is not None else None)
         ws.append(values)
 
-    wb.save(out_path)
+    try:
+        wb.save(out_path)
+    except PermissionError:
+        for n in range(1, 100):
+            alt = out_path.with_name(f"{out_path.stem} ({n}){out_path.suffix}")
+            if not alt.exists():
+                wb.save(alt)
+                return alt
+        raise
     return out_path

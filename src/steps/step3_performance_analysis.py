@@ -192,13 +192,12 @@ class Step3PerformanceAnalysis(BaseStep):
         display_df = self._build_display_df(analysis_df, month, year)
 
         try:
-            with pd.ExcelWriter(perf_file, mode='a', if_sheet_exists='replace') as writer:
-                display_df.to_excel(writer, sheet_name=sheet_name, index=False)
-            self.log(f"Saved to {perf_file}")
-        except FileNotFoundError:
-            with pd.ExcelWriter(perf_file, mode='w') as writer:
-                display_df.to_excel(writer, sheet_name=sheet_name, index=False)
-            self.log(f"Created new file: {perf_file}")
+            from .excel_io import save_sheet
+            out = save_sheet(display_df, perf_file, sheet_name)
+            if out != perf_file:
+                self.log(f"{perf_file.name} đang mở/khoá; ghi {out.name}", "warn")
+            else:
+                self.log(f"Saved to {perf_file}")
         except Exception as e:
             self.log(f"Could not save to Excel: {e}", "warn")
 
