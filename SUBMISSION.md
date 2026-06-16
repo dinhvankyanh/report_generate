@@ -10,38 +10,32 @@ tài khoản Google của tác giả.
 ---
 
 ## 1. Yêu cầu
-- Python 3.10+ (đã test 3.14) trên Windows.
-- 1 **LLM API key** (OpenAI-compatible). Bản demo dùng GreenNode AI Platform.
-  → Ban tổ chức dùng key **tạm** do tác giả cấp riêng (gửi ngoài repo), điền vào `.env`.
+- Python 3.10+ (đã test 3.14).
+- Bản nộp đã kèm sẵn `.env` (LLM key GreenNode + `DATA_SOURCE_MODE=manual`) và dữ liệu mẫu
+  → **chạy ngay, không cần cấu hình gì.** (Không cần tài khoản/credentials Google.)
 
-## 2. Cấu hình `.env`
-Tạo file `.env` ở thư mục gốc (copy từ `.env.example`) với nội dung:
-```
-DATA_SOURCE_MODE=manual
-LLM_BASE_URL=https://maas-llm-aiplatform-hcm.api.vngcloud.vn/v1
-LLM_API_KEY=<key tạm do tác giả cấp>
-LLM_MODEL=qwen/qwen3-5-27b
-```
-- `DATA_SOURCE_MODE=manual` → agent đọc email từ `sample_emails.json` (email tổng hợp),
-  **không cần Google credentials**.
-- Không cần `credentials.json` / `gmail_token.pkl` (đã loại khỏi bản nộp).
+## 2. Chạy (chọn 1 trong 2)
 
-## 3. Chạy
-**Cách 1 — Web UI (khuyến nghị):**
+**Cách 1 — CLI, nhanh nhất:**
+```
+pip install -r requirements.txt
+python run_agent.py            # mặc định report tháng 6/2026; hoặc: python run_agent.py 6 2026
+```
+→ Báo cáo `.docx` xuất ra `Report_Sample/Report/`.
+
+**Cách 2 — Web UI (chat):**
 ```
 pip install -r requirements.txt
 python app.py
 ```
-→ Mở http://localhost:5000 → bấm **Chọn folder** trỏ vào thư mục `Report_Sample/`
-(đi kèm bản nộp, đã có đủ file đầu vào) → kiểm tra checklist hiện ✓ đủ điều kiện →
-gõ **"làm report tháng 6/2026"** → xem tiến trình → tải file `.docx`.
+→ Mở http://localhost:5000 → **Chọn folder** trỏ vào `Report_Sample/` → checklist hiện ✓
+→ gõ **"làm report tháng 6/2026"** → tải file `.docx`.
+> Windows: double-click `run_agent_reportgenerate.bat` (tự cài deps + mở trình duyệt).
 
-> Trên Windows có thể double-click `run_agent_reportgenerate.bat` (tự cài deps + mở trình duyệt).
-
-**Cách 2 — CLI:**
-```python
-python -c "from src import config; config.set_data_dir('Report_Sample'); \
-from src.agent import ReportGenerateAgent; ReportGenerateAgent().generate_report(6,2026)"
+## (Tùy chọn) Dùng LLM key riêng của bạn
+Agent OpenAI-compatible. Sửa `.env`:
+```
+LLM_BASE_URL=...   LLM_API_KEY=...   LLM_MODEL=...
 ```
 
 ## 4. Kết quả
