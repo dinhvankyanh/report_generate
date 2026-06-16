@@ -191,6 +191,12 @@ How to read the emails:
   the statement with the LATEST date is authoritative — override older ones.
   (e.g. an older thread saying "Gini ~0.2, below expectation" is superseded by a
   newer one saying "Gini up to 0.3, near the expected threshold".)
+- A RESOLVED BLOCKER is not a current blocker. If an OLDER message said the work was
+  blocked / "cannot start / no resource" and a NEWER message says it is now unblocked
+  / "can kick off", the "details" MUST describe the NEW state, not the old blocker.
+  (e.g. older "DS busy, cannot start personalization" -> newer "model now ready, can
+  kick off personalization end June, needs 2 months -> delayed to Aug". Write the
+  NEWER version: can kick off end June but completion slips ~2 months.)
 - RELATIVE TIMING — do NOT do the month math yourself. If the timing is expressed
   as "kick off in <month> and take <N> months", just EXTRACT the parts: set
   "timing_start" to that kickoff month as "Mon-YY" (e.g. "cuối tháng 6" -> "Jun-26")
