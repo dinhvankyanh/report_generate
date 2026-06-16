@@ -22,8 +22,11 @@ from .. import config
 STATUS_VOCAB = ["Not started", "On Track", "Delay", "Deprioritized", "Done", "Live"]
 CONFIDENCE_VOCAB = ["High", "Medium", "Low"]
 
-# Subject tags that mark a product/initiative thread (others are dropped)
-RELEVANT_SUBJECT = re.compile(r"\[(product|cl|partnerships)\]|initiative", re.IGNORECASE)
+# Subject tags / keywords that mark a product/initiative thread (others dropped).
+# Tolerant of tag variants: [Product] [CL] [Partnership]/[Partnerships], or the
+# words "initiative"/"partner" anywhere in the subject.
+RELEVANT_SUBJECT = re.compile(r"\[(product|cl|partnerships?)\]|\binitiative\b|\bpartner\b",
+                              re.IGNORECASE)
 
 
 def llm_available() -> bool:
@@ -187,16 +190,26 @@ How to read the emails:
   Apply each fact to the initiative it concerns. Example: a "new modelling" thread
   that also sets the start/launch date of the dependent "personalization" initiative
   updates BOTH initiatives.
+- DISAMBIGUATE same-named initiatives: some rows share an IDENTICAL name and differ
+  only by planned timing / persona (e.g. two "Add 1 partner with higher risk appetite",
+  one planned May-26, one Aug-26). Match each email to the correct row using the
+  planned timing and clues in the email (the target/committed month, partner name,
+  persona). All the partner-onboarding emails here (Partner 2 / Onboard Partner A,
+  which were committed for Aug) concern the **Aug-planned** partner row — NOT the
+  May-planned one. Do not assign a partner's email to the wrong row.
 - RECENCY WINS: when the same initiative is mentioned in several threads/messages,
   the statement with the LATEST date is authoritative — override older ones.
   (e.g. an older thread saying "Gini ~0.2, below expectation" is superseded by a
   newer one saying "Gini up to 0.3, near the expected threshold".)
-- A RESOLVED BLOCKER is not a current blocker. If an OLDER message said the work was
-  blocked / "cannot start / no resource" and a NEWER message says it is now unblocked
-  / "can kick off", the "details" MUST describe the NEW state, not the old blocker.
-  (e.g. older "DS busy, cannot start personalization" -> newer "model now ready, can
-  kick off personalization end June, needs 2 months -> delayed to Aug". Write the
-  NEWER version: can kick off end June but completion slips ~2 months.)
+- A NEWER decision OVERRIDES an older one — including REVERSALS, even across two
+  differently-titled threads about the same initiative. Use the latest; treat an old
+  blocker/refusal as resolved if a newer message resolves it. Examples:
+  * older "DS busy, cannot start personalization" -> newer "model ready, can kick off
+    end June, needs 2 months" => write the NEWER (kick off end June, slips ~2 months).
+  * older "partner REFUSED phased rollout, slip to Oct" -> newer "partner AGREED to
+    phased rollout: phase 1 (no new feature, ~1M users) go-live ~Sep, phase 2 full
+    base later, no firm date" => write the NEWER (phased plan), NOT "Oct / refused".
+  When two threads about one initiative conflict, the one with the LATER date wins.
 - RELATIVE TIMING — do NOT do the month math yourself. If the timing is expressed
   as "kick off in <month> and take <N> months", just EXTRACT the parts: set
   "timing_start" to that kickoff month as "Mon-YY" (e.g. "cuối tháng 6" -> "Jun-26")
@@ -207,14 +220,18 @@ How to read the emails:
 
 Produce an update for an initiative when EITHER of these is true:
  (A) some email (in any thread) gives news about it — read the LATEST relevant statement; OR
- (B) it has NO email this month, BUT last month's row already shows it was completing:
-   previous details say it was deployed / went live / launched / done, OR its previous
-   new timing month is now in the past relative to {report_label}. In that case roll the
-   status to "Live" (or "Done"), and KEEP the previous new timing. Check every no-email
-   initiative against rule B.
+ (B) it has NO email this month, BUT last month's row shows it should have completed by now:
+   previous details indicate it was ready / about-to-launch / deployed / launched / done
+   (e.g. "ready to pilot", "go-live", "deployed"), OR its **planned timing OR previous new
+   timing month is now in the PAST** relative to {report_label}. In that case roll the
+   status to "Live" (or "Done"), keeping the timing. You MUST check every no-email
+   initiative against rule B — an item still "On Track" for a month that has already
+   passed is wrong; if it was ready, it is now Live.
 If neither applies, OMIT the initiative (it carries forward unchanged).
 
-Example of rule (B): previous status "Delay", previous new timing "May-26", previous details "Model deployed May" and the report month is June -> output status "Live", new_timing "May-26".
+Examples of rule (B):
+- prev status "Delay", prev new timing "May-26", prev details "Model deployed May", report month June -> "Live", new_timing "May-26".
+- prev status "On Track", planned timing "May-26", prev details "Integration & UAT done, ready to pilot mid-May", report month June -> "Live" (May has passed and it was ready), keep timing "May-26".
 
 Field rules:
 - "status": exactly one of {STATUS_VOCAB}. deprioritized/paused/revisit later -> "Deprioritized";
