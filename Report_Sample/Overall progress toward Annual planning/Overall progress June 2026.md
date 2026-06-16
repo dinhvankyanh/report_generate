@@ -9,8 +9,8 @@ Generated: 2026-06-16
 
 | No | Initiative | Status | Comments |
 |----|------------|--------|----------|
-| 1 | Add 1 partner with higher risk appetite | Live | [OK] Live |
-| 2 | Add 1 partner with higher risk appetite | Delay | [WARNING] Delayed - Đối tác yêu cầu bắt buộc API risk-based pricing chưa nằm trong scope, dự kiến delay sang tháng 10. |
+| 1 | Add 1 partner with higher risk appetite | On Track | [OK] On Track |
+| 2 | Add 1 partner with higher risk appetite | Delay | [WARNING] Delayed - Đối tác yêu cầu bắt buộc risk-based pricing API, cần thêm 6-8 tuần dev và UAT, timeline khả thi nhất |
 | 3 | New modelling allows scoring new segments | On Track | [OK] On Track |
 | 4 | Add new product that unlock new demand | Live | [OK] Live |
 
@@ -20,10 +20,10 @@ Generated: 2026-06-16
 |----|------------|--------|----------|
 | 5 | New score model version allows incremental more Eligible in existing segment & increasing Approval Rate | Live | [OK] Live |
 | 6 | Discover new traffic channel #1 | Live | [OK] Live |
-| 7 | Discover new traffic channel #2 | Deprioritized | ? Deprioritized - Do team Cashier full load và performance test chưa ổn định, đã đồng ý deprioritize và reschedule san |
+| 7 | Discover new traffic channel #2 | Deprioritized | ? Deprioritized - Đã đồng ý deprioritize do team Cashier full load và performance test chưa ổn định, sẽ quay lại Q4 kh |
 | 8 | Revamp layout of Landing Page | Live | [OK] Live |
 | 9 | Make product offerings more diverse | Live | [OK] Live |
-| 10 | Personalize offerings per users using big data | Delay | [WARNING] Delayed - Không thể bắt đầu scoping do team DS đang ưu tiên init optimize model, timeline tháng 7 không khả th |
+| 10 | Personalize offerings per users using big data | Delay | [WARNING] Delayed - Không thể kick off ngay tháng 6 do team DS đang ưu tiên init optimize model, cần 2 tháng để hoàn thi |
 | 11 | New redirecting tactics for dropped customers | Deprioritized | ? Deprioritized - Low expected impact (+0.5pp); deprioritized vs higher-impact channel work; may revisit Q4. |
 | 12 | Running year-end campaign | Not started | [INFO] Planning to begin Q3; creative & budget not yet locked. |
 
