@@ -17,3 +17,7 @@ greennode-agentbase-skills/
 _*.txt
 *.tmp
 ~$*
+
+# Submission bundle (contains LLM key — do not commit)
+submission.zip
+*.zip
