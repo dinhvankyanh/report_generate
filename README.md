@@ -11,6 +11,44 @@ supporting Initiatives tracker, Performance analysis, and Forecast.
 
 ---
 
+## 🚀 Try the live agent (deployed on GreenNode AgentBase)
+
+The agent is **running on AgentBase** (PUBLIC, no auth) — it's an HTTP API:
+
+- **Endpoint:** `https://endpoint-9423e96a-a3b5-4940-84f0-110b8aff6299.agentbase-runtime.aiplatform.vngcloud.vn`
+- **Health (open in a browser):** [`/health`](https://endpoint-9423e96a-a3b5-4940-84f0-110b8aff6299.agentbase-runtime.aiplatform.vngcloud.vn/health) → returns `{"status":"Healthy"}`
+
+### Call it — easiest, one line (Windows PowerShell)
+
+From the repo folder (uses the bundled `call_agent.ps1`):
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\call_agent.ps1
+```
+
+It hits `/health`, then generates the June 2026 report and prints the JSON result.
+Change the month: `... .\call_agent.ps1 -Message "report for July 2026"`.
+
+### Call it — raw API (any tool: PowerShell / curl / Postman)
+
+`POST /invocations` with JSON body `{"message": "lam report thang 6 nam 2026"}`
+(also accepts `"làm report tháng 6 năm 2026"` or `"report for June 2026"`):
+
+```powershell
+$url = "https://endpoint-9423e96a-a3b5-4940-84f0-110b8aff6299.agentbase-runtime.aiplatform.vngcloud.vn"
+Invoke-RestMethod -Uri "$url/invocations" -Method Post -ContentType "application/json" `
+  -Body '{"message":"lam report thang 6 nam 2026"}' -TimeoutSec 300 | ConvertTo-Json -Depth 6
+```
+
+```bash
+curl -X POST "$URL/invocations" -H "Content-Type: application/json" \
+  -d '{"message":"lam report thang 6 nam 2026"}' --max-time 300
+```
+
+> ⏳ A call takes **~2 minutes** (runs the full 7-step pipeline + LLM) — set timeout ≥ 300s, it is not stuck. Expected response: `status: success`, the report file name, top-3 priorities, and a 0 consistency-warning count.
+
+---
+
 ## Use case (≤300 words)
 
 **Problem.** Each month a product/biz team hand-builds a Cash Loan report: read dozens
