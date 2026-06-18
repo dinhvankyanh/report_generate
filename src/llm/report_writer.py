@@ -479,17 +479,25 @@ def build_report_data(context, month, year, data_source):
             escalations.append({**it, "impact": _impact_score(it["expected_impact"])})
     escalations.sort(key=lambda x: x["impact"], reverse=True)
 
-    # --- Forecast key numbers ---
+    # --- Forecast: per-metric table for month X+1 + key disbursement numbers ---
     forecast = context.get("forecast")
     disb_cur = disb_next = None
+    forecast_table = []
     if forecast is not None and not forecast.empty:
         acol = next((c for c in forecast.columns if "(actual)" in str(c).lower()), None)
         fcol = next((c for c in forecast.columns if "(forecast)" in str(c).lower()), None)
-        for _, r in forecast.iterrows():
-            if "disbursement" in str(r.get("Metric", "")).lower():
-                disb_cur = _f(r.get(acol)) if acol else None
-                disb_next = _f(r.get(fcol)) if fcol else None
-                break
+        ncol = next((c for c in forecast.columns if "note" in str(c).lower()), None)
+        for i, (_, r) in enumerate(forecast.iterrows()):
+            name = r.get("Metric", "")
+            unit = meta_for(name, i)["unit"]
+            cur, fc = _f(r.get(acol)) if acol else None, _f(r.get(fcol)) if fcol else None
+            note = r.get(ncol) if ncol else None
+            note = "" if note is None or (isinstance(note, float) and pd.isna(note)) else str(note)
+            forecast_table.append({"metric": name, "unit": unit,
+                                   "cur": _fmt_val(cur, unit), "fcast": _fmt_val(fc, unit),
+                                   "notes": note})
+            if "disbursement" in str(name).lower():
+                disb_cur, disb_next = cur, fc
 
     # --- YTD / FY (Disbursement) from raw actual + KPI ---
     ytd_actual = ytd_plan = fy_plan = None
@@ -525,6 +533,7 @@ def build_report_data(context, month, year, data_source):
             "disb_next": round(disb_next) if disb_next is not None else None,
             "plan_next": round(plan_next) if plan_next else None,
         },
+        "forecast_table": forecast_table,
         "ytd": {
             "disb_ytd_actual": round(ytd_actual) if ytd_actual is not None else None,
             "disb_ytd_plan": round(ytd_plan) if ytd_plan is not None else None,

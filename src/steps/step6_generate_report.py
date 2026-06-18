@@ -200,6 +200,16 @@ class Step6GenerateReport(BaseStep):
         elif data["forecast"]["disb_next"] is not None:
             label_para(f"Run-rate. {meta['next_month']} Disbursement run-rate is "
                        f"~{data['forecast']['disb_next']:,} VNDm.")
+        # Full forecast table for next month (deterministic) — the funnel projected
+        # from the current run-rate + initiative uplifts.
+        ft = data.get("forecast_table") or []
+        if ft:
+            subhead(f"Forecast — {meta['next_month']} funnel")
+            table(
+                ["Metric (Cash Loan)", "Unit", f"{cur3}-{yy} (actual)",
+                 f"{next3}-{yy} (forecast)", "Initiative notes"],
+                [[r["metric"], r["unit"], r["cur"], r["fcast"], r["notes"]] for r in ft],
+            )
         if nar.get("runrate_structural"):
             subhead("Structural ceiling unlocks")
             bullets(nar["runrate_structural"])
