@@ -7,8 +7,9 @@ a chat box to type "lam report thang X nam Y"), plus the AgentBase HTTP contract
 
 Cloud cannot read a local folder, so instead of a folder picker the UI lets the
 user UPLOAD the required input files into a server-side working folder. The folder
-is pre-seeded with the bundled Report_Sample inputs so the agent works out-of-the-box;
-uploading replaces/adds files. The LLM runs via the GreenNode MaaS endpoint in config.py.
+starts EMPTY (checklist all ✗); the user either uploads the files or clicks "Dung du
+lieu mau" to load the bundled Report_Sample inputs (checklist flips to ✓). The LLM
+runs via the GreenNode MaaS endpoint in config.py.
 """
 import os
 import sys
@@ -79,8 +80,9 @@ def _prereqs():
     return items, trackers, all(i["ok"] for i in items)
 
 
-# Seed sample data at startup so the agent is ready out-of-the-box.
-_seed_sample()
+# NOTE: do NOT seed at startup — the working folder starts empty so the checklist
+# shows all ✗, letting the user demo either uploading files OR clicking "Dung du
+# lieu mau" (which seeds and flips the checklist to ✓).
 
 
 def _summary(context: dict) -> dict:
