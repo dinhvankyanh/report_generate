@@ -25,3 +25,4 @@ submission.zip
 *.zip
 .agentbase/
 _*.json
+_workdir/

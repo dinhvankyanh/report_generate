@@ -1,5 +1,6 @@
 # Report Generate Agent — dependencies
 greennode-agentbase            # AgentBase Custom Agent HTTP server (main.py entrypoint)
+python-multipart               # file upload parsing for the web UI (main.py /api/upload)
 flask>=3.0
 pandas>=2.0
 openpyxl>=3.1
