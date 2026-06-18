@@ -13,10 +13,21 @@ supporting Initiatives tracker, Performance analysis, and Forecast.
 
 ## 🚀 Try the live agent (deployed on GreenNode AgentBase)
 
-The agent is **running on AgentBase** (PUBLIC, no auth) — it's an HTTP API:
+The agent is **running on AgentBase** (PUBLIC, no auth). Open the endpoint in a browser
+for a **web UI**, or call the HTTP API directly.
 
-- **Endpoint:** `https://endpoint-9423e96a-a3b5-4940-84f0-110b8aff6299.agentbase-runtime.aiplatform.vngcloud.vn`
-- **Health (open in a browser):** [`/health`](https://endpoint-9423e96a-a3b5-4940-84f0-110b8aff6299.agentbase-runtime.aiplatform.vngcloud.vn/health) → returns `{"status":"Healthy"}`
+- **Endpoint (web UI):** `https://endpoint-9423e96a-a3b5-4940-84f0-110b8aff6299.agentbase-runtime.aiplatform.vngcloud.vn`
+- **Health:** [`/health`](https://endpoint-9423e96a-a3b5-4940-84f0-110b8aff6299.agentbase-runtime.aiplatform.vngcloud.vn/health) → `{"status":"Healthy"}`
+
+### Use the web UI (open the endpoint in a browser)
+
+1. **Required input files** checklist (Metrics, KPI, Actual performance, Annual planning +
+   a prior-month Initiatives tracker). Provide them either way:
+   - **Upload files** — pick your `.xlsx` files (the tracker is auto-routed to its subfolder), or
+   - **Data Sample (use for demo)** — loads the bundled sample inputs in one click.
+   The ✗ flip to ✓ when ready.
+2. Type a command in the chat box (e.g. `report for June 2026`) → **Generate report** (~2 min).
+3. Download the **report (.docx)** and the generated **Initiatives tracker, month X (.xlsx)**.
 
 ### Call it — easiest, one line (Windows PowerShell)
 

@@ -248,3 +248,31 @@ recency (tin mới đảo tin cũ, kể cả khác thread) · roll-forward ready
 
 ## Lưu ý vận hành
 Đừng mở file output (tracker/Forecast/Performance/report) trong Excel/Word khi chạy agent → khoá file → ghi sang bản phụ.
+
+---
+
+# Session: 2026-06-17 → 18 (đợt 5 — quality_rules sâu, dọn code, DEPLOY AgentBase + web UI)
+
+## Quality rules & report fixes (đợt đầu session)
+- **Terminology**: agent KHÔNG viết tắt (v-next/AR) / tự dịch — details viết tiếng Anh, tên metric đầy đủ (sửa prompt extractor + report_writer). Memory [[terminology-no-abbreviations]].
+- **Audit report vs quality_rules.md** → fix loạt lỗi narrative bằng **deterministic anchors** ([[report-quality-deterministic-anchors]]):
+  - Bug `_split_initiatives` nhầm #5 là section (tên chứa "incremental") → drop; fix: nhận section CHỈ khi không có No.
+  - `_expected_vs_realized`: đo impact tại **THÁNG init go-live** (launch MoM), chia share theo promise khi nhiều init cùng metric+tháng (#1+#5 eligible +15pp → 10/5), persistence "held through report month". Render bảng "Initiative delivery — expected vs realized".
+  - `_unaddressed_gaps`: metric dưới plan mà không init actionable → "Plan gaps without an active remediation initiative" (vd %Approval Rate residual).
+  - Top-priorities §3: selection deterministic từ Step 5 (loại Live/Done/Deprioritized, impact desc→timeline asc); LLM chỉ viết "why". Escalations §4 riêng. **Rule 16 trong quality_rules.md viết lại** + thêm **Rule 17-19** (data lineage, [[data-lineage-consistency]]).
+- **Step 8 cross-file consistency check** (advisory): funnel identity Actual/KPI, perf==Actual+KPI, forecast actual==Actual[X], phát hiện carry-forward (tracker X≡X-1). UTF-8 stdout fix (config.py) — log tiếng Việt không crash cp1252.
+- **Extraction timeout fix**: LLM_TIMEOUT 90→180, pass-2 max_tokens 8000→4000, retry 2 lần; carry-forward âm thầm được flag.
+- **tracker_writer**: clone file X-1 làm template (giữ y hệt col width/font/border + tô màu status theo trạng thái tháng X).
+- **Bỏ markdown exports + Step 6 annual progress** (report §4 đã cover); pipeline còn 6 step + Step 7 consistency; rename file/class. Bỏ Metrics? KHÔNG — file input bắt buộc.
+- Dọn code: xoá step7_generate_pdf, test_step1_2, dead methods email_source, unused imports; xoá submission.zip, Report_05-2026.docx, file "expected".
+
+## DEPLOY lên GreenNode AgentBase (Claw-a-thon submission)
+- IAM creds user cung cấp → `.greennode.json` (gitignored). Cài `jq` (C:\Users\STARTER-local\bin), Docker Desktop.
+- `main.py` = Custom Agent entrypoint (GreenNodeAgentBaseApp): POST /invocations + GET /health. Dockerfile (python:3.12-slim). Deploy qua skill `/agentbase-deploy`: managed CR `vcr.vngcloud.vn/111480-abp111782`, runtime `report-agent` (runtime-6925a378..., flavor 2x4, PUBLIC). Endpoint: https://endpoint-9423e96a-...vngcloud.vn. Chi tiết [[agentbase-deployment]].
+- **BTC review fail "endpoint không tìm thấy"** = họ mở GET / → 404 → thêm web UI tại `/`.
+- **Web UI đầy đủ** (qua app.add_route): note file bắt buộc + Upload files + "Data Sample (use for demo)" + checklist prereqs + ô chat → /invocations → tải report .docx + Initiatives tracker tháng X .xlsx (/download?type=report|tracker). KHÔNG seed lúc start (checklist đỏ → upload/sample mới xanh). UI tiếng Anh, ô lệnh để trống + placeholder. parse_input nhận cả có dấu/không dấu/English.
+- **Forecast table** thêm vào report §2 (13 metric: actual vs forecast tháng X+1).
+
+## Trạng thái cuối (đợt 5)
+- GitHub @ main đầy đủ, sạch secret (.greennode.json gitignored; LLM key vẫn baked trong config.py — user CHẤP NHẬN, **ROTATE sau chấm** cả IAM secret lẫn LLM key).
+- Endpoint AgentBase live (web UI + API), state đỏ sẵn sàng demo. Còn lại (user): demo video, thumbnail, nộp form.

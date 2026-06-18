@@ -1,17 +1,26 @@
 # Agent Report Generate — Build Documentation (latest)
 
-> Cập nhật: 2026-06-16. Tài liệu này phản ánh hệ thống **đã triển khai thực tế**
+> Cập nhật: 2026-06-18. Tài liệu này phản ánh hệ thống **đã triển khai thực tế**
 > (không chỉ là spec). Spec gốc theo tháng X/năm Y được giữ ở mục "Yêu cầu nghiệp vụ".
 
 Agent tự động generate report tháng X/năm Y: đọc dữ liệu Excel + cào email (qua
 LLM), tính toán, và xuất **report .docx phân tích** (layout/wording đã học từ một
-report mẫu và cố định trong code) + các file phụ trợ. Có **giao diện chat web** để chạy.
+report mẫu và cố định trong code) + các file phụ trợ. **Đã deploy public lên GreenNode
+AgentBase** (Claw-a-thon 2026) với **web UI** (upload file / dữ liệu mẫu + chat) và chạy
+local được qua Flask web UI hoặc CLI.
 
 ---
 
 ## 1. Cách chạy
 
-### Web UI (khuyến nghị)
+### Cloud — GreenNode AgentBase (bản đã deploy, dùng cho cuộc thi)
+- Endpoint PUBLIC: `https://endpoint-9423e96a-a3b5-4940-84f0-110b8aff6299.agentbase-runtime.aiplatform.vngcloud.vn`
+- Mở trên trình duyệt → **web UI**: checklist file bắt buộc + nút **Upload files** / **Data Sample (use for demo)** → ô **chat** nhập "report for June 2026" → **Generate report** (~2 phút) → tải **report .docx** + **Initiatives tracker tháng X .xlsx**.
+- API: `GET /health` (200) · `POST /invocations` body `{"message":"lam report thang 6 nam 2026"}` · `GET /download?type=report|tracker`.
+- Entrypoint cloud = `main.py` (GreenNodeAgentBaseApp + các route web qua `app.add_route`). Chạy headless (`DATA_SOURCE_MODE=manual`, không Gmail); dữ liệu lưu ở `_workdir/` (upload hoặc seed từ Report_Sample). Đóng gói qua `Dockerfile`. Quy trình deploy + redeploy: xem memory `agentbase-deployment`.
+- Helper gọi nhanh: `call_agent.ps1` (PowerShell 1 dòng).
+
+### Web UI local
 - **Double-click `run_agent_reportgenerate.bat`** → tự cài deps lần đầu, chạy server, mở trình duyệt.
 - Hoặc thủ công:
   ```bash
@@ -19,7 +28,8 @@ report mẫu và cố định trong code) + các file phụ trợ. Có **giao di
   python app.py            # mở http://localhost:5000
   # LAN: $env:HOST="0.0.0.0"; python app.py  -> http://<IP-may>:5000
   ```
-- Trên UI: **Chọn folder** dữ liệu (hộp thoại native hoặc dán path) → xem **checklist file prerequisites** (✓/✗) → gõ **"làm report tháng 6/2026 giúp tôi"** → xem tiến trình realtime → tải report **.docx**.
+- Trên UI local: **Chọn folder** dữ liệu (hộp thoại native hoặc dán path) → checklist prerequisites (✓/✗) → gõ "làm report tháng 6/2026" → tiến trình realtime → tải report.
+  (Bản cloud `main.py` thay folder-picker bằng **upload file** vì container không truy cập được folder máy.)
 
 ### CLI
 ```bash
@@ -36,7 +46,7 @@ DATA_SOURCE_MODE=email          # "email" (Gmail+LLM) hoặc "manual" (chỉ Exc
 LLM_BASE_URL=https://maas-llm-aiplatform-hcm.api.vngcloud.vn/v1
 LLM_API_KEY=<GreenNode key>     # bắt buộc cho email mode
 LLM_MODEL=qwen/qwen3-5-27b      # model `path` từ aip.sh models
-LLM_TIMEOUT=90
+LLM_TIMEOUT=180                 # endpoint qwen3 overhead cao; default 180s (xem mục 6)
 ```
 - **Gmail**: cần `credentials.json` + `gmail_token.pkl` ở **project root** (tách khỏi data folder). Lần đầu mở OAuth qua browser.
 - **Data folder** (chứa Excel input + output): chọn runtime qua web (`config.set_data_dir`), mặc định = project root. Credentials KHÔNG nằm trong data folder.
@@ -45,11 +55,14 @@ LLM_TIMEOUT=90
 
 ## 3. Kiến trúc code
 ```
-app.py                         # Flask web UI (chat + chọn folder + SSE stream + download)
+main.py                        # AgentBase Custom Agent entrypoint + WEB UI (upload/sample + chat + /download report&tracker)
+Dockerfile / .dockerignore     # đóng gói image deploy lên AgentBase (CMD python main.py)
+call_agent.ps1                 # gọi nhanh endpoint qua PowerShell (1 dòng)
+app.py                         # Flask web UI LOCAL (chat + chọn folder + SSE stream + download)
 run_agent.py                   # CLI runner
-templates/index.html           # giao diện chat
+templates/index.html           # giao diện chat local
 run_agent_reportgenerate.bat   # launcher double-click
-requirements.txt
+requirements.txt               # +greennode-agentbase, +python-multipart
 src/
 ├── agent.py                   # ReportGenerateAgent: parse "tháng X năm Y" + chạy 7 step
 ├── config.py                  # paths, set_data_dir(), LLM_CONFIG, REQUIRED_INPUT_FILES, đọc .env
@@ -142,7 +155,7 @@ src/
   - **KPI snapshot** kèm dòng **"Movement check"** (Rule 7 — deterministic): metric tuyệt đối
     tăng nhưng rate đứng yên → MECHANICAL; rate cải thiện → REAL.
   - **1. Performance Overview**: Headline → MoM bridge (fact, phân rã có số) → Plan-miss bridge → bullet Structural/Incremental ánh xạ initiative + **bảng "Initiative delivery — expected vs realized"** (deterministic, phủ mọi initiative — Rule 4/5/9/13).
-  - **2. Next Month Run-Rate**: run-rate + structural/incremental.
+  - **2. Next Month Run-Rate**: run-rate narrative + **bảng Forecast funnel tháng X+1** (deterministic: `Metric | Unit | {X} actual | {X+1} forecast | Initiative notes`, đủ 13 metric) + structural/incremental notes.
   - **3. Top Priorities** (bảng `# | Objective/lever | Initiative & owner | Target & why`) — **selection deterministic** (Step 5: loại Live/Done/Deprioritized, impact desc → timeline asc); LLM chỉ viết "why".
   - **4. Progress Toward Annual Plan**: bảng Structural (Confidence/Status) + Incremental (Impact/Status)
     + YTD vs plan & FY outlook + Risks + **Escalations** (bảng deterministic: initiative Delay/Deprioritized,
