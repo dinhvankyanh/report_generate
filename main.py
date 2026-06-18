@@ -14,6 +14,7 @@ runs via the GreenNode MaaS endpoint in config.py.
 import os
 import sys
 import shutil
+from pathlib import Path
 from datetime import datetime
 
 os.environ.setdefault("DATA_SOURCE_MODE", "manual")  # headless: no Gmail OAuth
@@ -134,6 +135,8 @@ def handler(payload: dict, context: RequestContext) -> dict:
                 "ai_notice": AI_NOTICE, "session_id": context.session_id}
 
     ok = bool(result.get("success"))
+    if ok:
+        _remember_outputs(result.get("context", {}), month, year)
     return {
         "status": "success" if ok else "error",
         "message": (f"Report for {month}/{year} generated." if ok
@@ -238,7 +241,10 @@ async function run(){
       if(d.report.report_file) h+='<br>📄 File: <code>'+d.report.report_file+'</code>';
       if(d.report.top_priorities){h+='<br>Top priorities:<ol>'+d.report.top_priorities.map(p=>'<li>'+p+'</li>').join('')+'</ol>';}
       if('consistency_warnings' in d.report) h+='Cross-file consistency warnings: '+d.report.consistency_warnings;
-      if(d.status==='success') h+='<br><a class="dl" href="/download">⬇ Download report (.docx)</a>';
+      if(d.status==='success'){
+        h+='<br><a class="dl" href="/download?type=report">⬇ Download report (.docx)</a>';
+        h+=' &nbsp;&nbsp; <a class="dl" href="/download?type=tracker">⬇ Download Initiatives tracker, month X (.xlsx)</a>';
+      }
     }
     if(d.ai_notice) h+='<br><span class="muted">'+d.ai_notice+'</span>';
     out.innerHTML=h;
@@ -283,17 +289,42 @@ def _api_sample(request):
     return JSONResponse({"prereqs": items, "trackers": trackers, "ready": ready})
 
 
+# Remember the files produced by the latest run so they can be downloaded.
+_LAST_OUTPUTS = {}
+_MIME = {
+    "report": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "tracker": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+}
+
+
+def _remember_outputs(ctx: dict, month: int, year: int):
+    rp = ctx.get("report_path")
+    if rp:
+        _LAST_OUTPUTS["report"] = Path(rp)
+    tr = config.INITIATIVES_TRACKER_DIR / f"Initiatives tracker thang {month}-{year}.xlsx"
+    if tr.exists():
+        _LAST_OUTPUTS["tracker"] = tr
+
+
+def _latest(dirp, pattern):
+    files = [p for p in dirp.glob(pattern) if not p.name.startswith("~$")] if dirp and dirp.exists() else []
+    files.sort(key=lambda p: p.stat().st_mtime)
+    return files[-1] if files else None
+
+
 def _download(request):
-    try:
-        docs = sorted(config.REPORT_DIR.glob("*.docx"), key=lambda p: p.stat().st_mtime)
-        if docs:
-            latest = docs[-1]
-            return FileResponse(
-                str(latest), filename=latest.name,
-                media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document")
-    except Exception:
-        pass
-    return PlainTextResponse("No report generated yet. Run the agent first.", status_code=404)
+    """Download a generated file: ?type=report (.docx, default) or ?type=tracker (.xlsx)."""
+    kind = request.query_params.get("type", "report")
+    if kind not in ("report", "tracker"):
+        kind = "report"
+    p = _LAST_OUTPUTS.get(kind)
+    if not p or not Path(p).exists():
+        p = _latest(config.REPORT_DIR, "*.docx") if kind == "report" \
+            else _latest(config.INITIATIVES_TRACKER_DIR, "*.xlsx")
+    if p and Path(p).exists():
+        p = Path(p)
+        return FileResponse(str(p), filename=p.name, media_type=_MIME[kind])
+    return PlainTextResponse("Not generated yet. Run the agent first.", status_code=404)
 
 
 app.add_route("/", _root, methods=["GET"])
