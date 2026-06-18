@@ -32,8 +32,8 @@ config.set_data_dir(WORK)
 from src.agent import ReportGenerateAgent
 from src.llm import llm_available
 
-AI_NOTICE = ("Ban dang tuong tac voi mot tac nhan AI. Bao cao do AI tao tu dong - "
-             "hay ra soat truoc khi su dung. (AI-generated; review before use.)")
+AI_NOTICE = ("You are interacting with an AI agent. This report is AI-generated - "
+             "please review before use.")
 
 app = GreenNodeAgentBaseApp()
 
@@ -65,7 +65,7 @@ def _prereqs():
     """(items, trackers, ready): the minimum files needed for a report."""
     import re
     items = [{"name": f, "kind": "file", "ok": (config.DATA_DIR / f).exists(),
-              "detail": "file dau vao bat buoc"} for f in config.REQUIRED_INPUT_FILES]
+              "detail": "required input file"} for f in config.REQUIRED_INPUT_FILES]
 
     def _tk(name):
         m = re.search(r'th[a-z\x00-\xff]*ng\s*(\d+)[-\s](\d{4})', name, re.IGNORECASE)
@@ -75,8 +75,8 @@ def _prereqs():
     trackers = sorted((p.name for p in tdir.glob("*.xlsx") if not p.name.startswith("~$")),
                       key=_tk) if tdir and tdir.exists() else []
     items.append({"name": "Initiatives tracker/", "kind": "folder", "ok": len(trackers) > 0,
-                  "detail": (f"moi nhat: {trackers[-1]}" if trackers
-                             else "can >=1 file tracker thang truoc (de clone skeleton)")})
+                  "detail": (f"latest: {trackers[-1]}" if trackers
+                             else "need >=1 prior-month tracker file (to clone the skeleton)")})
     return items, trackers, all(i["ok"] for i in items)
 
 
@@ -114,28 +114,30 @@ def handler(payload: dict, context: RequestContext) -> dict:
     if not ready:
         missing = [i["name"] for i in items if not i["ok"]]
         return {"status": "error",
-                "message": "Thieu file dau vao: " + ", ".join(missing) + ". Hay upload du file roi thu lai.",
+                "message": "Missing required input file(s): " + ", ".join(missing)
+                           + ". Please upload all files (or load the data sample) and try again.",
                 "ai_notice": AI_NOTICE, "session_id": context.session_id}
 
     agent = ReportGenerateAgent()
     parsed = agent.parse_input(message)
     if not parsed:
         return {"status": "error",
-                "message": "Khong nhan ra thang/nam. Vi du: 'lam report thang 6 nam 2026'.",
+                "message": "Could not parse month/year. Example: 'report for June 2026' "
+                           "or 'lam report thang 6 nam 2026'.",
                 "ai_notice": AI_NOTICE, "session_id": context.session_id}
 
     month, year = parsed
     try:
         result = agent.generate_report(month, year)
     except Exception as e:
-        return {"status": "error", "message": f"Loi tao report: {e}",
+        return {"status": "error", "message": f"Error generating report: {e}",
                 "ai_notice": AI_NOTICE, "session_id": context.session_id}
 
     ok = bool(result.get("success"))
     return {
         "status": "success" if ok else "error",
-        "message": (f"Da tao report thang {month}/{year}." if ok
-                    else f"Tao report thang {month}/{year} that bai."),
+        "message": (f"Report for {month}/{year} generated." if ok
+                    else f"Failed to generate report for {month}/{year}."),
         "report": _summary(result.get("context", {})),
         "ai_notice": AI_NOTICE,
         "timestamp": datetime.now().isoformat(),
@@ -152,7 +154,7 @@ def health_check() -> PingStatus:
 # Web UI routes
 # --------------------------------------------------------------------------- #
 _WEB_UI = """<!doctype html>
-<html lang="vi"><head><meta charset="utf-8">
+<html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Report Generate Agent — GreenNode AgentBase</title>
 <style>
@@ -171,34 +173,36 @@ _WEB_UI = """<!doctype html>
  .muted{color:#64748b;font-size:13px}
 </style></head><body>
 <h1>📊 Report Generate Agent</h1>
-<p class="sub">Monthly Cash Loan business report — chay tren GreenNode AgentBase.</p>
-<div class="note">🤖 Ban dang tuong tac voi mot <b>tac nhan AI</b>. Bao cao do AI tao tu dong — hay ra soat truoc khi dung.</div>
+<p class="sub">Monthly Cash Loan business report — running on GreenNode AgentBase.</p>
+<div class="note">🤖 You are interacting with an <b>AI agent</b>. The report is AI-generated — please review before use.</div>
 
 <div class="card">
-  <h3>1) File dau vao bat buoc</h3>
+  <h3>1) Required input files</h3>
   <ul class="req">
-    <li><code>Metrics.xlsx</code> — file dau vao bat buoc</li>
-    <li><code>KPI.xlsx</code> — file dau vao bat buoc</li>
-    <li><code>Actual performance.xlsx</code> — file dau vao bat buoc</li>
-    <li><code>Annual planning.xlsx</code> — file dau vao bat buoc</li>
-    <li><code>Initiatives tracker thang (X-1).xlsx</code> — can &ge;1 file tracker thang truoc (de clone skeleton)</li>
+    <li><code>Metrics.xlsx</code> — required input file</li>
+    <li><code>KPI.xlsx</code> — required input file</li>
+    <li><code>Actual performance.xlsx</code> — required input file</li>
+    <li><code>Annual planning.xlsx</code> — required input file</li>
+    <li><code>Initiatives tracker thang (X-1).xlsx</code> — need &ge;1 prior-month tracker file (to clone the skeleton)</li>
   </ul>
   <div class="row">
     <input type="file" id="files" multiple accept=".xlsx">
-    <button onclick="upload()">Tai file len</button>
-    <button class="sec" onclick="useSample()">Dung du lieu mau</button>
+    <button onclick="upload()">Upload files</button>
+    <button class="sec" onclick="useSample()">Data Sample (use for demo)</button>
   </div>
-  <div id="prereqs" class="muted">Dang tai trang thai...</div>
+  <div id="prereqs" class="muted">Loading status...</div>
 </div>
 
 <div class="card">
-  <h3>2) Nhap lenh</h3>
+  <h3>2) Enter command</h3>
   <div class="row">
-    <input type="text" id="msg" value="lam report thang 6 nam 2026"
-           placeholder="vd: lam report thang 6 nam 2026 / report for June 2026">
-    <button id="btn" onclick="run()">Tao report</button>
+    <input type="text" id="msg" value=""
+           placeholder='e.g. "report for June 2026"  or  "lam report thang 6 nam 2026"'>
+    <button id="btn" onclick="run()">Generate report</button>
   </div>
-  <div id="out" class="muted">Bam "Tao report" (mat ~2 phut: chay 7 buoc + LLM).</div>
+  <div class="muted">Type the month to report on. Examples: <code>report for June 2026</code> ·
+  <code>lam report thang 6 nam 2026</code></div>
+  <div id="out" class="muted" style="margin-top:8px">Click "Generate report" (~2 min: 7-step pipeline + LLM).</div>
 </div>
 <p class="muted">API: <code>POST /invocations</code> · <a href="/health">/health</a> ·
 Repo: <a href="https://github.com/dinhvankyanh/report_generate">github.com/dinhvankyanh/report_generate</a></p>
@@ -206,26 +210,27 @@ Repo: <a href="https://github.com/dinhvankyanh/report_generate">github.com/dinhv
 function renderPrereqs(d){
   const el=document.getElementById('prereqs');
   let h=(d.prereqs||[]).map(p=>`<div class="pq ${p.ok?'ok':'no'}">${p.ok?'✓':'✗'} ${p.name} <span class="muted">— ${p.detail||''}</span></div>`).join('');
-  h+=`<div class="pq ${d.ready?'ok':'no'}">${d.ready?'✓ Da du dieu kien — co the tao report.':'✗ Chua du — tai len cac muc con thieu.'}</div>`;
+  h+=`<div class="pq ${d.ready?'ok':'no'}">${d.ready?'✓ Ready — you can generate the report.':'✗ Not ready — upload the missing items (or use the data sample).'}</div>`;
   el.innerHTML=h;
   document.getElementById('btn').disabled=!d.ready;
 }
 async function loadCfg(){ try{renderPrereqs(await (await fetch('/api/config')).json());}catch(e){} }
 async function upload(){
-  const f=document.getElementById('files').files; if(!f.length){alert('Chon file truoc');return;}
+  const f=document.getElementById('files').files; if(!f.length){alert('Choose files first');return;}
   const fd=new FormData(); for(const x of f) fd.append('files',x);
-  document.getElementById('prereqs').innerHTML='Dang tai len...';
+  document.getElementById('prereqs').innerHTML='Uploading...';
   try{ renderPrereqs(await (await fetch('/api/upload',{method:'POST',body:fd})).json()); }
-  catch(e){ document.getElementById('prereqs').innerHTML='Loi upload: '+e; }
+  catch(e){ document.getElementById('prereqs').innerHTML='Upload error: '+e; }
 }
 async function useSample(){
-  document.getElementById('prereqs').innerHTML='Dang nap du lieu mau...';
+  document.getElementById('prereqs').innerHTML='Loading data sample...';
   try{ renderPrereqs(await (await fetch('/api/sample',{method:'POST'})).json()); }
-  catch(e){ document.getElementById('prereqs').innerHTML='Loi: '+e; }
+  catch(e){ document.getElementById('prereqs').innerHTML='Error: '+e; }
 }
 async function run(){
   const msg=document.getElementById('msg').value, out=document.getElementById('out'), btn=document.getElementById('btn');
-  btn.disabled=true; out.innerHTML='⏳ Dang chay agent (~2 phut), vui long doi...';
+  if(!msg.trim()){ out.innerHTML='Please type a command, e.g. "report for June 2026".'; return; }
+  btn.disabled=true; out.innerHTML='⏳ Running the agent (~2 min), please wait...';
   try{
     const d=await (await fetch('/invocations',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:msg})})).json();
     let h='<b>'+(d.status||'')+'</b> — '+(d.message||'');
@@ -233,11 +238,11 @@ async function run(){
       if(d.report.report_file) h+='<br>📄 File: <code>'+d.report.report_file+'</code>';
       if(d.report.top_priorities){h+='<br>Top priorities:<ol>'+d.report.top_priorities.map(p=>'<li>'+p+'</li>').join('')+'</ol>';}
       if('consistency_warnings' in d.report) h+='Cross-file consistency warnings: '+d.report.consistency_warnings;
-      if(d.status==='success') h+='<br><a class="dl" href="/download">⬇ Tai report (.docx)</a>';
+      if(d.status==='success') h+='<br><a class="dl" href="/download">⬇ Download report (.docx)</a>';
     }
     if(d.ai_notice) h+='<br><span class="muted">'+d.ai_notice+'</span>';
     out.innerHTML=h;
-  }catch(e){ out.innerHTML='❌ Loi: '+e; }
+  }catch(e){ out.innerHTML='❌ Error: '+e; }
   btn.disabled=false;
 }
 loadCfg();
