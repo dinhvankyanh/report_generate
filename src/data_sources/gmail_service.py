@@ -1,11 +1,7 @@
 """
 Gmail Service - OAuth2 authentication and email fetching
 """
-import os
-import pickle
-from pathlib import Path
 from typing import List, Dict, Optional
-from datetime import datetime
 
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow

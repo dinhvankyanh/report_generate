@@ -86,16 +86,6 @@ class Step4Forecast(BaseStep):
 
         metric_order = list(metric_to_pct_key.keys())
 
-        # Mapping: which %metric belongs to which base metric
-        pct_to_base_map = {
-            "% mom growth user base": "Total User Base",
-            "% Eligible/Total User Base": "Eligible Base For Cash Loan",
-            "%Traffic/Eligible": "Traffic to Landing Page",
-            "%Submission/Traffic": "Submission",
-            "% Approval Rate": "Approved",
-            "% mom growth ticket size": "Average Ticket Size"
-        }
-
         # Build forecast with all 13 metrics in correct order
         forecasts = []
         for metric_name in metric_order:

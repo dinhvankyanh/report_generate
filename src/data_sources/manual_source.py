@@ -2,8 +2,7 @@
 Manual Data Source (Phase 1 / Fallback)
 Reads data directly from Excel files - no email integration required
 """
-import os
-from typing import Dict, List, Optional
+from typing import List, Optional
 import pandas as pd
 from datetime import datetime
 from pathlib import Path
@@ -75,8 +74,6 @@ class ManualDataSource(BaseDataSource):
         the most recent tracker at/before the month — so the X-1 skeleton uses
         the latest available earlier file if the exact month is missing.
         """
-        import re  # Import here to avoid circular import
-
         # Find the file
         file_path = self._find_initiatives_file(month, year, exact=exact)
 
@@ -231,9 +228,6 @@ class ManualDataSource(BaseDataSource):
 
     def get_month_column_name(self, df: pd.DataFrame, month: int, year: int) -> str:
         """Get the column name for a specific month in the DataFrame"""
-        # Try to find column with the date
-        target_date = datetime(year, month, 1)
-
         for col in df.columns:
             if isinstance(col, datetime):
                 if col.year == year and col.month == month:

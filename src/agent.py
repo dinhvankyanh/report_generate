@@ -3,7 +3,6 @@ Main Report Generate Agent
 Chat-based interface for generating monthly reports
 """
 import re
-import sys
 import unicodedata
 from typing import Dict, Any, Optional
 from datetime import datetime
@@ -139,11 +138,11 @@ class ReportGenerateAgent:
         # Summary
         print(f"\n{'='*60}")
         if all_success:
-            print(f"[OK] REPORT GENERATION COMPLETE!")
+            print("[OK] REPORT GENERATION COMPLETE!")
             pdf_path = self.context.get("pdf_path", "Unknown")
             print(f"[PDF] Output: {pdf_path}")
         else:
-            print(f"[FAIL] REPORT GENERATION FAILED")
+            print("[FAIL] REPORT GENERATION FAILED")
         print(f"{'='*60}\n")
 
         return {
@@ -202,7 +201,7 @@ class ReportGenerateAgent:
                     result = self.generate_report(month, year)
 
                     if result["success"]:
-                        print(f"\n[OK] Report generated successfully!")
+                        print("\n[OK] Report generated successfully!")
                         print(f"     Location: {result['context'].get('pdf_path', 'N/A')}")
                     else:
                         print("\n[ERROR] Report generation failed.")

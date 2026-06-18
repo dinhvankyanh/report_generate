@@ -60,7 +60,7 @@ curl -X POST "$URL/invocations" -H "Content-Type: application/json" \
 
 ---
 
-## Use case (≤300 words)
+## Use case
 
 **Problem.** Each month a product/biz team hand-builds a Cash Loan report: read dozens
 of initiative-update emails, reconcile them against the KPI / actual-performance

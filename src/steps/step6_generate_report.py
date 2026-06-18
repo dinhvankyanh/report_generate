@@ -72,7 +72,6 @@ class Step6GenerateReport(BaseStep):
     def _render(self, path: Path, data: dict, nar: dict, month: int, year: int):
         from docx import Document
         from docx.shared import Pt, RGBColor
-        from docx.enum.text import WD_ALIGN_PARAGRAPH
 
         meta = data["meta"]
         yy = year % 100

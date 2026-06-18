@@ -14,7 +14,7 @@ Configure via environment (loaded from .env by config.py):
 """
 import json
 import re
-from typing import List, Dict, Optional
+from typing import List, Dict
 
 from .. import config
 
